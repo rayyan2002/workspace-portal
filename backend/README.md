@@ -6,22 +6,22 @@ A workplace document assistant: upload documents, ask questions, get answers wit
 
 | | Stack | Port | Repository |
 |---|---|---|---|
-| **Frontend** | React 19 + TypeScript + Vite | `5173` | `knowledge-assistant-fe` |
-| **Backend** | Spring Boot 4, JWT auth, per-user scoping, audited action flow | `8080` | `knowledge-assistant` |
-| **GenAI service** | Python 3.11 + FastAPI — retrieval, generation, citations | `8000` | `knowledge-assistant/genai-service` |
+| **Frontend** | React 19 + TypeScript + Vite | `5173` | `frontend/` |
+| **Backend** | Spring Boot 4, JWT auth, per-user scoping, audited action flow | `8080` | `backend/` |
+| **GenAI service** | Python 3.11 + FastAPI — retrieval, generation, citations | `8000` | `backend/genai-service/` |
 | **Database** | PostgreSQL 16 + pgvector | `5432` | — |
 
-Only the backend talks to the GenAI service; the browser never does. The boundary is specified in `INTEGRATION_CONTRACT.md`, in the backend repository.
+Only the backend talks to the GenAI service; the browser never does. The boundary is specified in `INTEGRATION_CONTRACT.md`, in `backend/`.
 
-> **This file is duplicated byte-for-byte in both repositories and must stay that way.** A
-> reader arriving at either one needs the whole system, not their half of it — the most
-> common way to fail at setting this up is to have one service running and no idea that a
-> second is required. When you change it, copy it to the other repository in the same
-> commit:
+> **This file is duplicated byte-for-byte at `backend/README.md` and `frontend/README.md`
+> and must stay that way.** A reader arriving at either service needs the whole system, not
+> their half of it — the most common way to fail at setting this up is to have one service
+> running and no idea that a second is required. When you change it, copy it to the other
+> location in the same commit:
 >
 > ```bash
-> cp README.md ../knowledge-assistant-fe/README.md     # or the reverse
-> diff -q README.md ../knowledge-assistant-fe/README.md
+> cp backend/README.md frontend/README.md     # or the reverse
+> diff -q backend/README.md frontend/README.md
 > ```
 
 **This document is a runbook.** The test it is written against is: *another engineer can start the application from these steps alone.*
@@ -46,19 +46,26 @@ Elsewhere, where a step is unverified it says so.
 
 ---
 
-## 0. The two checkouts
+## 0. The checkout
 
-Clone both, side by side. Every relative path in this document assumes that layout:
+One repository holds all three services:
 
 ```bash
-git clone <backend-url>  knowledge-assistant
-git clone <frontend-url> knowledge-assistant-fe
+git clone https://github.com/rayyan2002/workspace-portal.git
 ```
 
 ```
-.
-├── knowledge-assistant/        backend, and genai-service/ inside it
-└── knowledge-assistant-fe/     frontend
+workspace-portal/
+├── frontend/              the SPA
+└── backend/               the API, and genai-service/ inside it
+    └── genai-service/
+```
+
+**Every relative path in this document is relative to `backend/`**, so `cd` there first and
+commands like `cd genai-service` below work as written:
+
+```bash
+cd workspace-portal/backend
 ```
 
 ---
@@ -334,10 +341,10 @@ curl http://localhost:8080/api/health
 
 ### 4 — Frontend (port 5173)
 
-In the **`knowledge-assistant-fe`** repository — a separate checkout, which the paths below assume sits beside the backend one:
+In **`frontend/`** — the paths below are relative to `backend/`, as everywhere else in this document:
 
 ```bash
-cd ../knowledge-assistant-fe
+cd ../frontend
 npm install
 npm run dev
 ```
@@ -471,7 +478,7 @@ It is the regression test that matters for answer quality. It asserts retrieval 
 ### Frontend — 22 tests
 
 ```bash
-cd ../knowledge-assistant-fe
+cd ../frontend
 npm test            # vitest run
 npm run lint
 npm run build       # tsc -b && vite build — the type check is part of the build
@@ -608,7 +615,7 @@ genai-service/
 ```
 
 ```
-knowledge-assistant-fe/src/
+frontend/src/
 ├── pages/          one per route: Chat, Documents, Actions, Admin, auth screens
 ├── components/     citation cards, action cards, message view, shared inputs
 ├── api/            the HTTP client, token storage, 401-refresh handling
