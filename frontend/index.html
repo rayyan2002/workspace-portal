@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>knowledge-assistant-fe</title>
+    <script>
+      // Applied BEFORE first paint. Waiting for React would show the light palette
+      // for a frame and then snap to dark — the flash is far more jarring than the
+      // few lines it costs to avoid.
+      (function () {
+        try {
+          var choice = localStorage.getItem('themePreference');
+          if (choice === 'dark' || choice === 'light') {
+            document.documentElement.setAttribute('data-theme', choice);
+          }
+        } catch (e) { /* private mode: fall through to the OS preference */ }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

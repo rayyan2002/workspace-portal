@@ -1,0 +1,1379 @@
+{
+  "components": {
+    "schemas": {
+      "AnswerResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "description": "Empty string when outcome is insufficient_context",
+            "title": "Answer",
+            "type": "string"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          },
+          "proposals": {
+            "description": "Returned WITH the answer rather than from a second endpoint: a separate call would re-run retrieval and split the trace across two requests. Spring's governance flow decides whether any of these execute; nothing here has run",
+            "items": {
+              "$ref": "#/components/schemas/ToolProposal"
+            },
+            "title": "Proposals",
+            "type": "array"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/AnswerTrace"
+          }
+        },
+        "required": [
+          "outcome",
+          "answer",
+          "citations",
+          "trace"
+        ],
+        "title": "AnswerResponse",
+        "type": "object"
+      },
+      "AnswerTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_document_count": {
+            "title": "Allowed Document Count",
+            "type": "integer"
+          },
+          "candidates_before_threshold": {
+            "description": "Distinct candidates AFTER duplicate collapsing, BEFORE min_score",
+            "title": "Candidates Before Threshold",
+            "type": "integer"
+          },
+          "citation_source": {
+            "default": "none",
+            "description": "`quotes` | `answer_fallback` | `none`. WHICH MECHANISM produced the citations. `quotes` is the model naming the sentence it used \u2014 the strongest evidence, and what qa-v2 is built around. `answer_fallback` is this service locating the ANSWER's own sentences in the retrieved chunks afterwards, which runs only when the model declared none: Qwen2.5-0.5B keeps to the JSON envelope on short factual questions and abandons it on open-ended ones, so a 0.73-overlap answer was shipping with zero sources. Both ship the DOCUMENT's words; they are not equally strong evidence, and a surprising citation must be traceable to the weaker mechanism",
+            "title": "Citation Source",
+            "type": "string"
+          },
+          "collapsed_duplicates": {
+            "default": 0,
+            "description": "Rows dropped as byte-identical duplicates of a higher-ranked chunk. Without this number, collapsing is invisible: a top_k of 5 that returns 2 chunks looks identical to a corpus with only 2 matches",
+            "title": "Collapsed Duplicates",
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "dropped_citations": {
+            "description": "IDs the model cited that were not in the retrieved set. Removed in code, not trusted. qa-v1 ONLY: under qa-v2 the model never states an identifier, so this list is always empty and dropped_quotes carries the signal instead",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Dropped Citations",
+            "type": "array"
+          },
+          "dropped_proposals": {
+            "description": "Tool proposals rejected before they left this service \u2014 unknown tool, arguments that failed validation, or a document_id outside allowed_document_ids. Same rule as citations: a small model's output is checked in code, never trusted",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dropped Proposals",
+            "type": "array"
+          },
+          "dropped_quotes": {
+            "description": "Quotes the model attributed to the context that could not be matched back to any chunk shown \u2014 paraphrase, invention, or an ambiguous tie between two chunks. Under qa-v2 this is the real drop signal: the model never states an identifier, so dropped_citations above cannot populate. Truncated to 60 characters, so it is never a channel for chunk text",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dropped Quotes",
+            "type": "array"
+          },
+          "embed_ms": {
+            "title": "Embed Ms",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "embedding_model_revision": {
+            "title": "Embedding Model Revision",
+            "type": "string"
+          },
+          "generate_ms": {
+            "title": "Generate Ms",
+            "type": "integer"
+          },
+          "generation_backend": {
+            "default": "local",
+            "description": "`local` or `gemini` \u2014 which backend ACTUALLY answered, not which was asked for. Recorded because the two differ in where the document text went: `gemini` sent the retrieved chunks to Google, `local` kept them on the machine",
+            "title": "Generation Backend",
+            "type": "string"
+          },
+          "generation_model": {
+            "title": "Generation Model",
+            "type": "string"
+          },
+          "generation_model_revision": {
+            "title": "Generation Model Revision",
+            "type": "string"
+          },
+          "grounding_overlap": {
+            "default": 0.0,
+            "description": "Fraction of the answer's content words that appear in the chunks it was shown. An answer built from the context scores 0.58-1.00; one written from the model's training scores near zero. Reported always, so a borderline answer is visible even when it was allowed through",
+            "title": "Grounding Overlap",
+            "type": "number"
+          },
+          "history_turns_received": {
+            "default": 0,
+            "description": "Turns Spring sent. 0 means a first turn or a caller not sending history",
+            "title": "History Turns Received",
+            "type": "integer"
+          },
+          "min_score": {
+            "title": "Min Score",
+            "type": "number"
+          },
+          "parse_path": {
+            "default": "",
+            "description": "How the model's reply was read. `json` \u2014 it returned a well-formed object. `salvaged_json` \u2014 the object was cut off mid-string by the token cap and the answer text was recovered from it. `text_fallback` \u2014 it ignored the format and wrote prose. `unparsed` \u2014 nothing usable. This is the single most useful field for 'why does the answer look like that?'",
+            "title": "Parse Path",
+            "type": "string"
+          },
+          "prompt_template_version": {
+            "title": "Prompt Template Version",
+            "type": "string"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "quarantine_reasons": {
+            "description": "The phrases that triggered quarantine, capped at 60 characters each. The matched phrase only, never the chunk: a safety log that quotes the document is a data-leak channel wearing a security badge",
+            "items": {
+              "type": "string"
+            },
+            "title": "Quarantine Reasons",
+            "type": "array"
+          },
+          "quarantined_chunks": {
+            "default": 0,
+            "description": "Retrieved chunks removed before the model saw them, because they contained an instruction aimed at the model rather than information. The chunk is dropped, not the question \u2014 refusing the whole query would hand an attacker a denial of service for the cost of one uploaded file",
+            "title": "Quarantined Chunks",
+            "type": "integer"
+          },
+          "query_prefix_applied": {
+            "title": "Query Prefix Applied",
+            "type": "boolean"
+          },
+          "raw_model_reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The model's verbatim output, only when the request set include_raw",
+            "title": "Raw Model Reply"
+          },
+          "rejected_as_ungrounded": {
+            "default": false,
+            "description": "The retrieval cleared min_score but the ANSWER was not made of the retrieved text, so it was withheld and the outcome downgraded to insufficient_context. This is the guard against a confident answer with no source \u2014 the same rule as dropping an unresolvable citation, applied to the whole reply",
+            "title": "Rejected As Ungrounded",
+            "type": "boolean"
+          },
+          "retried_with_history": {
+            "default": false,
+            "description": "The question alone matched nothing above min_score, so retrieval ran a second time with the previous user turn prepended. Measured: anaphoric follow-ups ('tell me in detail', 'and?', 'tell me more') score 0 alone and 5 with it, while standalone questions never reach this path \u2014 which is why it is a FALLBACK and not applied unconditionally. Prepending always cost one of five slots to the stale topic on a topic change",
+            "title": "Retried With History",
+            "type": "boolean"
+          },
+          "retrieved": {
+            "description": "EVERY retrieved chunk, including uncited ones",
+            "items": {
+              "$ref": "#/components/schemas/RetrievedChunk"
+            },
+            "title": "Retrieved",
+            "type": "array"
+          },
+          "routed_by": {
+            "default": "silent",
+            "description": "`keywords` | `classifier` | `silent` | `suppressed` | `failed`. WHICH HALF DECIDED, and it is a question that had no answer in the trace while routing lived in a keyword list in another service. The router is a trigger list AND a classifier over the retrieval encoder, and an operator reading a surprising proposal needs to know which one to go and look at. `suppressed` means the question was an unsupported request, so routing was not consulted at all",
+            "title": "Routed By",
+            "type": "string"
+          },
+          "routed_tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which tool the router chose for this message, or null for none. Day 14b made this answerable: 'why was I offered this?' had no answer in the trace while routing lived in a keyword list in another service",
+            "title": "Routed Tool"
+          },
+          "routing_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The classifier's margin over its `none` probability; 1.0 for a keyword hit. A tool is only proposed when this clears 0.10, because a favourite that wins by 0.001 is not grounds to interrupt a human",
+            "title": "Routing Confidence"
+          },
+          "search_ms": {
+            "title": "Search Ms",
+            "type": "integer"
+          },
+          "top_k": {
+            "title": "Top K",
+            "type": "integer"
+          },
+          "total_ms": {
+            "title": "Total Ms",
+            "type": "integer"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          },
+          "unsupported_request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The capability this service was asked for and does not have \u2014 'send messages', 'browse the web', 'reveal its prompt'. Names WHICH limitation applies, because a generic refusal explains nothing and the Day 12 requirement is that the service explain its limitations clearly. Checked before retrieval, so an impossible request costs milliseconds instead of a minute",
+            "title": "Unsupported Request"
+          }
+        },
+        "required": [
+          "trace_id",
+          "retrieved",
+          "top_k",
+          "min_score",
+          "candidates_before_threshold",
+          "allowed_document_count",
+          "embedding_model",
+          "embedding_model_revision",
+          "query_prefix_applied",
+          "embed_ms",
+          "search_ms",
+          "total_ms",
+          "generation_model",
+          "generation_model_revision",
+          "prompt_template_version",
+          "prompt_tokens",
+          "completion_tokens",
+          "generate_ms"
+        ],
+        "title": "AnswerTrace",
+        "type": "object"
+      },
+      "Body_ingest_ingest_post": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "document_id": {
+            "description": "Correlation only \u2014 Python does not look it up",
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "file": {
+            "description": "Document bytes. Spring sends them; Python never reads a filesystem",
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "document_id",
+          "filename",
+          "content_type"
+        ],
+        "title": "Body_ingest_ingest_post",
+        "type": "object"
+      },
+      "Chunk": {
+        "additionalProperties": false,
+        "properties": {
+          "char_end": {
+            "minimum": 0.0,
+            "title": "Char End",
+            "type": "integer"
+          },
+          "char_start": {
+            "minimum": 0.0,
+            "title": "Char Start",
+            "type": "integer"
+          },
+          "embedding": {
+            "description": "Exactly embedding_dim floats",
+            "items": {
+              "type": "number"
+            },
+            "title": "Embedding",
+            "type": "array"
+          },
+          "ordinal": {
+            "description": "Order within the document, 1-based. The first chunk is 1, never 0",
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Page number for paged formats. Revision 7 recorded these two fields as added on Day 3 and they were NOT \u2014 the ingestion dataclass, the database column and the citation card all carry them, and only the published contract did not. Caught on Day 11c while implementing /ingest: without them every newly uploaded document would store NULL, and Day 9's 'Page N' line would be blank for uploads while working for the fixture-loaded corpus",
+            "title": "Page"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Heading or sheet name the chunk came from. Maps to document_chunks.section",
+            "title": "Section"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "token_count": {
+            "description": "Measured with the embedding model's tokenizer",
+            "minimum": 1.0,
+            "title": "Token Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ordinal",
+          "text",
+          "token_count",
+          "char_start",
+          "char_end",
+          "embedding"
+        ],
+        "title": "Chunk",
+        "type": "object"
+      },
+      "Citation": {
+        "additionalProperties": false,
+        "description": "No `ordinal`, and no text.\n\n`ordinal` was here until Day 7 and had NO CONSUMER \u2014 verified against all three rather\nthan assumed:\n\n    citations table   -> {message_id, document_id, section, excerpt}, no ordinal column\n    CitationDto.java  -> id, documentId, documentName, section, excerpt\n    Type.ts Citation  -> the same five fields\n\nSpring resolves everything it needs from `chunk_id`: the `document_chunks` row holds\nthe text it renders as `excerpt` and the `section` the card shows. An ordinal is\nredundant for lookup and read by nobody. Same rule that removed `description` from\nCreateTaskArguments on Day 2 \u2014 an extra field with no consumer is how the four-copies\ndrift started in Month 2.\n\nDay 6 corrected this field's floor from `ge=0` to `ge=1` without asking whether the\nfield should exist at all. The correction was right on its own terms; the question was\nsimply not asked until Day 7.\n\nNo text either, for the Day 1 reason: Spring wrote the chunk rows and hydrates excerpts\nfrom its own database rather than trusting this service to echo them back.",
+        "properties": {
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "quote": {
+            "default": "",
+            "description": "The sentence FROM THE CHUNK that the model's quote resolved to \u2014 the document's words, never the model's. This is what a citation card shows: the whole chunk averages 1,538 characters and reaches 2,597, which is a dump rather than something a reader can inspect. Empty when no single sentence stood out, in which case Spring falls back to the stored chunk text",
+            "title": "Quote",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "chunk_id",
+          "document_id",
+          "score"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
+      "ConversationTurn": {
+        "additionalProperties": false,
+        "description": "One earlier message in the same conversation.\n\nSpring owns the `messages` table and sends these; Python stays stateless and\n`session_id` remains correlation-only, never looked up. Keeping history in the REQUEST\nrather than having Python query for it preserves rule R1 \u2014 this service holds SELECT on\nthe chunk tables and nothing else \u2014 and keeps the service a pure function of its input,\nwhich is what makes a bad answer reproducible from the trace alone.",
+        "properties": {
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ConversationTurn",
+        "type": "object"
+      },
+      "CreateTaskArguments": {
+        "additionalProperties": false,
+        "description": "Mirrors Spring's CreateTaskPayload exactly: title + priority, nothing else.\n\n`description` was here and has been removed: no consumer exists. Spring's payload does\nnot accept it, the tasks table has no column for it, and the frontend's ActionProposal\nunion does not read it. An extra field with no consumer is how the four-copies drift\nstarted in Month 2 \u2014 this one was two days old.\n\nmax_length 255 matches `tasks.title VARCHAR(255)`, so an over-long title is rejected\nhere rather than surfacing from Postgres as a 500.",
+        "properties": {
+          "priority": {
+            "description": "Matches TaskPriority. Month 2 hardcoded 'medium'; Month 3 infers it",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "tool": {
+            "const": "create-task",
+            "default": "create-task",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "priority"
+        ],
+        "title": "CreateTaskArguments",
+        "type": "object"
+      },
+      "ErrorCode": {
+        "enum": [
+          "MODEL_NOT_READY",
+          "MALFORMED_REQUEST",
+          "NOT_IMPLEMENTED",
+          "INTERNAL_ERROR"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Field-level detail for MALFORMED_REQUEST",
+            "title": "Errors"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "trace_id"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IngestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_count": {
+            "minimum": 0.0,
+            "title": "Chunk Count",
+            "type": "integer"
+          },
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/Chunk"
+            },
+            "title": "Chunks",
+            "type": "array"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "embedding_dim": {
+            "title": "Embedding Dim",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "embedding_model_revision": {
+            "title": "Embedding Model Revision",
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/IngestTrace"
+          }
+        },
+        "required": [
+          "document_id",
+          "chunk_count",
+          "embedding_model",
+          "embedding_model_revision",
+          "embedding_dim",
+          "chunks",
+          "trace"
+        ],
+        "title": "IngestResponse",
+        "type": "object"
+      },
+      "IngestTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_ms": {
+            "title": "Chunk Ms",
+            "type": "integer"
+          },
+          "embed_ms": {
+            "title": "Embed Ms",
+            "type": "integer"
+          },
+          "extract_ms": {
+            "title": "Extract Ms",
+            "type": "integer"
+          },
+          "total_ms": {
+            "title": "Total Ms",
+            "type": "integer"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trace_id",
+          "extract_ms",
+          "chunk_ms",
+          "embed_ms",
+          "total_ms"
+        ],
+        "title": "IngestTrace",
+        "type": "object"
+      },
+      "LiveResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "default": "live",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "LiveResponse",
+        "type": "object"
+      },
+      "LookupKnowledgeArguments": {
+        "additionalProperties": false,
+        "description": "Mirrors Spring's LookupPayload: a single query string.",
+        "properties": {
+          "query": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "tool": {
+            "const": "lookup-knowledge",
+            "default": "lookup-knowledge",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "LookupKnowledgeArguments",
+        "type": "object"
+      },
+      "Outcome": {
+        "enum": [
+          "grounded",
+          "insufficient_context"
+        ],
+        "title": "Outcome",
+        "type": "string"
+      },
+      "ReadyResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "embedding_dim": {
+            "title": "Embedding Dim",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "embedding_model_revision": {
+            "title": "Embedding Model Revision",
+            "type": "string"
+          },
+          "generation_model": {
+            "title": "Generation Model",
+            "type": "string"
+          },
+          "generation_model_revision": {
+            "title": "Generation Model Revision",
+            "type": "string"
+          },
+          "status": {
+            "default": "ready",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "embedding_model",
+          "embedding_model_revision",
+          "embedding_dim",
+          "generation_model",
+          "generation_model_revision"
+        ],
+        "title": "ReadyResponse",
+        "type": "object"
+      },
+      "RetrievalRequest": {
+        "additionalProperties": false,
+        "description": "Shared by /answer and /retrieve.\n\nallowed_document_ids is REQUIRED and has NO DEFAULT, and an empty list is LEGAL.\n\n  omitted -> 422. Spring always knows the answer, so omission is a Spring bug and\n             should be loud.\n  empty   -> a normal state (a user with no ready documents). Zero chunks, and\n             outcome=insufficient_context.\n\nDo not add `= []` here, and do not write `if allowed_document_ids:` at the query.\nThat branch is the leak: with it, an empty list silently becomes an unfiltered\nsearch across every user's documents. The filter is applied unconditionally.\nSpring computes this list as documents that are owned AND ready.",
+        "properties": {
+          "allowed_document_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Allowed Document Ids",
+            "type": "array"
+          },
+          "history": {
+            "description": "Earlier turns in this conversation, oldest first. UNLIKE allowed_document_ids this DOES default to empty, because absent and empty mean the same thing here \u2014 the first turn of a conversation has no history, and that is not a Spring bug. Truncated to the most recent settings.max_history_turns in code; the 50 cap is a sanity bound, not the working limit",
+            "items": {
+              "$ref": "#/components/schemas/ConversationTurn"
+            },
+            "maxItems": 50,
+            "title": "History",
+            "type": "array"
+          },
+          "include_raw": {
+            "default": false,
+            "description": "DIAGNOSTIC. Populates trace.raw_model_reply with the model's verbatim output before any parsing. Off by default and Spring never sets it: the raw reply can run to several KB of half-formed JSON and is of no use to a product request. It exists so 'the model said X but the user saw Y' is answerable at all \u2014 benchmarks/19 sets it",
+            "title": "Include Raw",
+            "type": "boolean"
+          },
+          "min_score": {
+            "default": 0.6,
+            "description": "Cosine SIMILARITY, higher is better",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Min Score",
+            "type": "number"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "enum": [
+                  "local",
+                  "gemini"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which generation backend answers. Omitted means the configured default, which is `local`. CHOOSING `gemini` SENDS THE RETRIEVED CHUNKS \u2014 the user's private documents \u2014 TO GOOGLE; `local` keeps everything on the machine. That is why this is per request and reported back in the trace, rather than configured once and forgotten. Retrieval, citations and every guardrail are identical either way; only the step that turns a prompt into text differs",
+            "title": "Model"
+          },
+          "question": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Correlation only; never looked up",
+            "title": "Session Id"
+          },
+          "top_k": {
+            "default": 5,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question",
+          "allowed_document_ids"
+        ],
+        "title": "RetrievalRequest",
+        "type": "object"
+      },
+      "RetrieveResponse": {
+        "additionalProperties": false,
+        "description": "No text. Spring wrote the chunk rows and hydrates excerpts from its own database.",
+        "properties": {
+          "retrieved": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievedChunk"
+            },
+            "title": "Retrieved",
+            "type": "array"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/RetrieveTrace"
+          }
+        },
+        "required": [
+          "retrieved",
+          "trace"
+        ],
+        "title": "RetrieveResponse",
+        "type": "object"
+      },
+      "RetrieveTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_document_count": {
+            "title": "Allowed Document Count",
+            "type": "integer"
+          },
+          "candidates_before_threshold": {
+            "description": "Distinct candidates AFTER duplicate collapsing, BEFORE min_score",
+            "title": "Candidates Before Threshold",
+            "type": "integer"
+          },
+          "collapsed_duplicates": {
+            "default": 0,
+            "description": "Rows dropped as byte-identical duplicates of a higher-ranked chunk. Without this number, collapsing is invisible: a top_k of 5 that returns 2 chunks looks identical to a corpus with only 2 matches",
+            "title": "Collapsed Duplicates",
+            "type": "integer"
+          },
+          "embed_ms": {
+            "title": "Embed Ms",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "embedding_model_revision": {
+            "title": "Embedding Model Revision",
+            "type": "string"
+          },
+          "history_turns_received": {
+            "default": 0,
+            "description": "Turns Spring sent. 0 means a first turn or a caller not sending history",
+            "title": "History Turns Received",
+            "type": "integer"
+          },
+          "min_score": {
+            "title": "Min Score",
+            "type": "number"
+          },
+          "query_prefix_applied": {
+            "title": "Query Prefix Applied",
+            "type": "boolean"
+          },
+          "retried_with_history": {
+            "default": false,
+            "description": "The question alone matched nothing above min_score, so retrieval ran a second time with the previous user turn prepended. Measured: anaphoric follow-ups ('tell me in detail', 'and?', 'tell me more') score 0 alone and 5 with it, while standalone questions never reach this path \u2014 which is why it is a FALLBACK and not applied unconditionally. Prepending always cost one of five slots to the stale topic on a topic change",
+            "title": "Retried With History",
+            "type": "boolean"
+          },
+          "retrieved": {
+            "description": "EVERY retrieved chunk, including uncited ones",
+            "items": {
+              "$ref": "#/components/schemas/RetrievedChunk"
+            },
+            "title": "Retrieved",
+            "type": "array"
+          },
+          "search_ms": {
+            "title": "Search Ms",
+            "type": "integer"
+          },
+          "top_k": {
+            "title": "Top K",
+            "type": "integer"
+          },
+          "total_ms": {
+            "title": "Total Ms",
+            "type": "integer"
+          },
+          "trace_id": {
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trace_id",
+          "retrieved",
+          "top_k",
+          "min_score",
+          "candidates_before_threshold",
+          "allowed_document_count",
+          "embedding_model",
+          "embedding_model_revision",
+          "query_prefix_applied",
+          "embed_ms",
+          "search_ms",
+          "total_ms"
+        ],
+        "title": "RetrieveTrace",
+        "type": "object"
+      },
+      "RetrievedChunk": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1.0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "score": {
+            "description": "Cosine similarity in [-1, 1]. NOT pgvector distance",
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rank",
+          "chunk_id",
+          "document_id",
+          "score"
+        ],
+        "title": "RetrievedChunk",
+        "type": "object"
+      },
+      "SummarizeDocumentArguments": {
+        "additionalProperties": false,
+        "description": "TWO FIELDS WITH TWO DIFFERENT AUTHORS, which is the whole point of this class.\n\n`chunk_ordinal` is what a MODEL may state. `document_id` is what CODE resolved it to.\nNothing produces both, and the distinction is load-bearing: this service must never ask\nthe model for a document id, because a UUID costs 36 tokens and measurably stops the\n0.5B model citing at all, and it cannot know a filename it was never shown.\n\nSo the chain is: the model quotes a sentence -> `resolve_quote` turns the quote into a\n1-based ordinal over the chunks ACTUALLY SENT -> this service looks that ordinal up in\nits own retrieval result and fills in `document_id`. Every step after the quote is\narithmetic over data this service already holds.\n\n`document_id` was missing until Day 14b and that was the gap: INTEGRATION_CONTRACT.md\n\u00a75 specified the ordinal-to-document translation, Spring's SummarizePayload needs\n{documentId, documentName}, and NOTHING PERFORMED THE TRANSLATION. Jackson failed\nclosed on the mismatch \u2014 loudly, with \"Unrecognized field\", rather than nulling \u2014 so it\nwas latent rather than silent, but a proposal for this tool could not have been\nexecuted by the backend it was addressed to.\n\nSpring still derives `documentName` from its own `documents` row and RE-CHECKS\nOWNERSHIP rather than trusting this field. A document id arriving over HTTP is a claim;\nSpring owns that table and is the only side that can verify it.",
+        "properties": {
+          "chunk_ordinal": {
+            "description": "1-based index into the chunks sent for this request. Resolved from a quote",
+            "minimum": 1.0,
+            "title": "Chunk Ordinal",
+            "type": "integer"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The document the cited chunk belongs to, RESOLVED IN CODE from chunk_ordinal \u2014 never stated by the model. Null only inside this service before resolution; a proposal that still has null here is dropped rather than sent",
+            "title": "Document Id"
+          },
+          "tool": {
+            "const": "summarize-document",
+            "default": "summarize-document",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chunk_ordinal"
+        ],
+        "title": "SummarizeDocumentArguments",
+        "type": "object"
+      },
+      "ToolDefinition": {
+        "additionalProperties": false,
+        "description": "One entry in the registry published by GET /tools.",
+        "properties": {
+          "arguments_schema": {
+            "additionalProperties": true,
+            "description": "JSON Schema for this tool's arguments",
+            "title": "Arguments Schema",
+            "type": "object"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ToolName"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "arguments_schema"
+        ],
+        "title": "ToolDefinition",
+        "type": "object"
+      },
+      "ToolName": {
+        "description": "Values match Spring's ActionType enum EXACTLY \u2014 hyphens, not underscores.\n\nActionType writes these literal strings to PostgreSQL (`action_audit.type`), Jackson\ndispatches on them via @JsonSubTypes, and the frontend's discriminated union in\nType.ts matches on them. The training tracker writes them with underscores; the\nrunning system does not, and the running system wins. Emitting \"create_task\" here\nwould have required a translation layer whose only job is to undo a naming choice \u2014\ni.e. a fifth hand-maintained copy of the contract.",
+        "enum": [
+          "create-task",
+          "summarize-document",
+          "lookup-knowledge"
+        ],
+        "title": "ToolName",
+        "type": "string"
+      },
+      "ToolProposal": {
+        "additionalProperties": false,
+        "description": "No id field, deliberately.\n\nVerified against the running backend: Spring emits `\"id\": \"act-<uuid>\"` \u2014 a STRING with\nan `act-` prefix, not a bare UUID \u2014 and that value becomes `action_audit.action_id`\n(VARCHAR(255)) when a decision is recorded. Spring owns that row, so Spring mints the\nid. A `proposal_id: UUID` here would have been a second, conflicting identity for the\nsame thing, and Spring would have had to discard it.\n\n`label` is what the user actually reads on the approve/reject control: the frontend's\nActionProposal union in Type.ts requires it, and Spring currently hardcodes\n\"Create a tracking task for this request\". Month 3 can do better than a constant, which\nis why the model supplies it rather than the backend.",
+        "properties": {
+          "arguments": {
+            "discriminator": {
+              "mapping": {
+                "create-task": "#/components/schemas/CreateTaskArguments",
+                "lookup-knowledge": "#/components/schemas/LookupKnowledgeArguments",
+                "summarize-document": "#/components/schemas/SummarizeDocumentArguments"
+              },
+              "propertyName": "tool"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CreateTaskArguments"
+              },
+              {
+                "$ref": "#/components/schemas/SummarizeDocumentArguments"
+              },
+              {
+                "$ref": "#/components/schemas/LookupKnowledgeArguments"
+              }
+            ],
+            "title": "Arguments"
+          },
+          "label": {
+            "description": "Shown on the approve/reject control. Maps to ActionProposalDto.label",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "arguments",
+          "label"
+        ],
+        "title": "ToolProposal",
+        "type": "object"
+      },
+      "ToolRegistryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "registry_version": {
+            "title": "Registry Version",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/ToolDefinition"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tools",
+          "registry_version"
+        ],
+        "title": "ToolRegistryResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Called only by the Spring Boot backend, never by a browser. See INTEGRATION_CONTRACT.md. Every endpoint below is declared with its real request and response shape and returns 501 until it is implemented.",
+    "summary": "RAG, citations and tool proposals for the AI Workplace Knowledge Assistant",
+    "title": "Knowledge Assistant GenAI Service",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/answer": {
+      "post": {
+        "description": "The product path.\n\nThree decisions here are made in code and never delegated to a 0.5B model:\n  1. Whether there is enough context \u2014 scores are compared to min_score BEFORE the\n     model is called. insufficient_context never reaches the LLM.\n  2. Whether a citation is real \u2014 under qa-v2 the model quotes a SENTENCE and code\n     resolves it to a chunk; an unresolvable quote is dropped into\n     trace.dropped_quotes rather than guessed at.\n  3. Whether a tool call runs \u2014 never here. This service PROPOSES; Spring's governance\n     flow records a row for every decision including rejections, and only a human's\n     approval has an effect.\n  4. Which tool, if any, a message is asking for \u2014 decided by app.intent from the\n     USER'S MESSAGE ONLY, never from retrieved text, so a poisoned document cannot\n     forge a tool call.",
+        "operationId": "answer_answer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A model is not loaded"
+          }
+        },
+        "summary": "Grounded answer with citations and a diagnosable trace",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "description": "Never touches the models.\n\nLiveness answers \"is this process alive\", not \"is it useful yet\". Checking the models\nhere would report a still-loading service as dead and get it killed mid-startup.",
+        "operationId": "live_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The process is up",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "ready_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A model is still loading or failed to load"
+          }
+        },
+        "summary": "Both models are loaded and usable",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/ingest": {
+      "post": {
+        "description": "Deliberately a plain `def`, not `async def`.\n\nExtraction and embedding are CPU-bound. Inside an `async def` they would block the\nevent loop and take /health/live down with them \u2014 the FastAPI trap that has no Spring\nequivalent, where a slow call only ties up its own thread. A plain `def` endpoint runs\nin the threadpool.\n\nSpring writes every chunk row in one transaction and only then sets the document\n`ready`. A partially written document must never become retrievable.\n\n**IMPLEMENTED ON DAY 16, AND THIS IS THE DAY THE PRODUCT PATH FIRST RAN.** Every\nsearchable document in the database before today was populated by\n`benchmarks/11_load_fixture_chunks.py`, whose own docstring says it \"DELIBERATELY BREAKS\nRULE R1\" and exists so Day 6 had data to measure retrieval against. The product's\ningestion path did not exist; an uploaded document stored its bytes, went to\n`processing`, and stayed there. Day 11c built this and it was reverted; the only part\nkept was `page` and `section` on the Chunk contract, which is why they are already here.\n\n**NOTHING IS WRITTEN HERE AND THAT IS THE WHOLE BOUNDARY.** This service holds SELECT on\nthe chunk tables. It returns rows; Spring inserts them, in one transaction, and owns the\nstatus transition. Rule R1 survives the one day it would have been most tempting to bend\n\u2014 a `psycopg` INSERT here would be ten lines shorter and would put schema ownership in\ntwo places.\n\n**The document_id is correlation only.** It is never looked up, because looking it up\nwould mean this service deciding whether a document exists, which is Spring's to know.\nIt appears in the response so Spring can match a reply to a request, and in the log line\nso a slow ingestion is traceable.",
+        "operationId": "ingest_ingest_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_ingest_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The file type cannot be extracted"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The file contained no extractable text"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Embedding model not loaded"
+          }
+        },
+        "summary": "Bytes in, chunks and vectors out. Writes nothing",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/retrieve": {
+      "post": {
+        "description": "Exists so a bad answer can be bisected into \"retrieval was wrong\" or \"generation\nwas wrong\", and so Day 13's golden questions can test retrieval without paying for\ngeneration. The product path does not call this.",
+        "operationId": "retrieve_retrieve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A model is not loaded"
+          }
+        },
+        "summary": "Retrieval only, no generation. For evaluation, not for the product",
+        "tags": [
+          "rag"
+        ]
+      }
+    },
+    "/tools": {
+      "get": {
+        "description": "The registry, published rather than duplicated.\n\nSpring needs to know what a proposal can look like in order to validate one, and the\nDay 14 evaluation set needs it to assert that a tool is NOT proposed for an unrelated\nrequest. Both would otherwise keep their own copy of the tool list \u2014 which is the\nfour-copies problem starting over on its fifth copy.\n\nGET, and nothing here executes. Proposals are produced alongside an answer; execution is\nSpring's governance flow, never this service.\n\nTHIS REGISTRY DESCRIBED TOOLS NOBODY PROPOSED, FOR FIVE DAYS. Until Day 14b the only\nrouter in the system was a keyword trigger list in Spring that could emit `create-task`\nand nothing else, so `summarize-document` and `lookup-knowledge` were published here,\nvalidated by the contract and executable since Day 11 \u2014 and unreachable. Their selection\naccuracy was undefined, not good.\n\nDay 10 had measured the GENERATION model on the routing decision and found a constant\nfunction: propose-v1 answered \"none\" to all nine cases including four explicit task\nrequests, and propose-v2 answered \"create-task\" to all nine including \"what is the fleet\nsize\". That retired the idea of a prompt deciding, and `app.intent` replaces it with a\nCLASSIFIER over the retrieval encoder \u2014 which is a different thing entirely, and which\nmade both of the other two tools reachable.\n\nAND IT HAD NO CONSUMER. A registry published so the tool list would stop being copied by\nhand, that nothing ever read, prevents nothing. ToolRegistryConformanceTest in the Spring\nsuite is its first reader, and tests/test_intent.py is the second.",
+        "operationId": "tools_tools_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolRegistryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "The tool schemas this service may propose. Read-only",
+        "tags": [
+          "tools"
+        ]
+      }
+    }
+  }
+}

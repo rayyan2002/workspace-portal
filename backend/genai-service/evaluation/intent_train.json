@@ -1,0 +1,430 @@
+{
+  "_about": [
+    "TRAINING examples for the intent classifier. Day 14b.",
+    "",
+    "THIS FILE IS THE TRAIN SPLIT AND NOTHING ELSE. The test split is the `routing`",
+    "array in tool_cases.json, which was written on Day 14 — before any classifier",
+    "existed — and is not edited to make these numbers look better. It contains a case",
+    "labelled `known_miss` precisely because the keyword router cannot catch it, so the",
+    "held-out set is hostile to the incumbent rather than to the challenger.",
+    "",
+    "benchmarks/23_intent_classifier.py asserts the two files are DISJOINT by message",
+    "text. A classifier evaluated on its own training data reports its memory, not its",
+    "accuracy, and that assertion is what stops this file drifting into the test set.",
+    "",
+    "WHY LABELLED EXAMPLES AND NOT KEYWORDS. A keyword router matches the strings",
+    "someone thought of. 'can you note down that the ADBMS sheet needs updating' needs",
+    "'note down' to be in a list; 'could you jot down' needs 'jot down' added, and so",
+    "on without end. These examples are not matched against the message — they are",
+    "embedded into the same 384-dimensional space the retriever already uses, and the",
+    "message is classified by where it LANDS in that space. Phrasings nobody wrote",
+    "down still land near the ones that are.",
+    "",
+    "THE `none` CLASS IS THE LARGEST ON PURPOSE. A false positive puts a decision in",
+    "front of a human that should never have been raised; a miss merely does nothing.",
+    "Many of the `none` examples deliberately reuse task vocabulary inside questions,",
+    "because that is the error that costs something."
+  ],
+  "examples": [
+    {
+      "message": "create a task to rebuild the staging index",
+      "label": "create-task"
+    },
+    {
+      "message": "add a task for reviewing the pilot roster",
+      "label": "create-task"
+    },
+    {
+      "message": "make a task to chase the vendor invoice",
+      "label": "create-task"
+    },
+    {
+      "message": "open a ticket to fix the broken upload button",
+      "label": "create-task"
+    },
+    {
+      "message": "remind me to email the supervisor on Friday",
+      "label": "create-task"
+    },
+    {
+      "message": "remind me about the sprint retro tomorrow",
+      "label": "create-task"
+    },
+    {
+      "message": "note down that the hangar door sensor is faulty",
+      "label": "create-task"
+    },
+    {
+      "message": "jot down that we still owe the client a revised quote",
+      "label": "create-task"
+    },
+    {
+      "message": "can you write down that the backup job failed overnight",
+      "label": "create-task"
+    },
+    {
+      "message": "put this on my list: renew the domain certificate",
+      "label": "create-task"
+    },
+    {
+      "message": "I need to follow up with maintenance about the hydraulics",
+      "label": "create-task"
+    },
+    {
+      "message": "please chase up the missing expense receipts",
+      "label": "create-task"
+    },
+    {
+      "message": "track this: the nightly export is running twice",
+      "label": "create-task"
+    },
+    {
+      "message": "assign someone to verify the fuel log discrepancy",
+      "label": "create-task"
+    },
+    {
+      "message": "don't let me forget to submit the compliance form",
+      "label": "create-task"
+    },
+    {
+      "message": "action item: migrate the remaining legacy rows",
+      "label": "create-task"
+    },
+    {
+      "message": "we should schedule a review of the incident report",
+      "label": "create-task"
+    },
+    {
+      "message": "make sure the onboarding checklist gets updated",
+      "label": "create-task"
+    },
+    {
+      "message": "log a todo to clean up the unused S3 buckets",
+      "label": "create-task"
+    },
+    {
+      "message": "keep a note that the printer needs servicing",
+      "label": "create-task"
+    },
+    {
+      "message": "set a reminder for the quarterly audit",
+      "label": "create-task"
+    },
+    {
+      "message": "someone needs to recheck the landing gear figures",
+      "label": "create-task"
+    },
+    {
+      "message": "summarise the onboarding handbook for me",
+      "label": "summarize-document"
+    },
+    {
+      "message": "give me a summary of the maintenance manual",
+      "label": "summarize-document"
+    },
+    {
+      "message": "can you summarise that document",
+      "label": "summarize-document"
+    },
+    {
+      "message": "summarize the uploaded pdf",
+      "label": "summarize-document"
+    },
+    {
+      "message": "tldr of the compliance policy document please",
+      "label": "summarize-document"
+    },
+    {
+      "message": "write me a short overview of the vendor contract",
+      "label": "summarize-document"
+    },
+    {
+      "message": "sum up the whole safety report",
+      "label": "summarize-document"
+    },
+    {
+      "message": "condense the project charter into a few lines",
+      "label": "summarize-document"
+    },
+    {
+      "message": "give me the gist of the architecture document",
+      "label": "summarize-document"
+    },
+    {
+      "message": "brief me on the entire quarterly filing",
+      "label": "summarize-document"
+    },
+    {
+      "message": "summarise the spreadsheet I uploaded",
+      "label": "summarize-document"
+    },
+    {
+      "message": "I want an executive summary of the tender document",
+      "label": "summarize-document"
+    },
+    {
+      "message": "overview of the whole runbook please",
+      "label": "summarize-document"
+    },
+    {
+      "message": "shorten the training notes document into key points",
+      "label": "summarize-document"
+    },
+    {
+      "message": "look up what the handbook says about overtime",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "search my documents for anything about pgvector",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "find any mention of the hydraulic supplier",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "dig up whatever we have on the 2023 audit",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "check the knowledge base for retention policy",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "search for references to the AeroTwin dataset",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "look through my files for the budget breakdown",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "find me everything about runway resurfacing",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "scan the documents for anything on GDPR",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "look up the escalation contacts",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "search the corpus for embedding dimensions",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "see if anything mentions the deprecated endpoint",
+      "label": "lookup-knowledge"
+    },
+    {
+      "message": "what is the maximum takeoff weight",
+      "label": "none"
+    },
+    {
+      "message": "how many runways does the airport have",
+      "label": "none"
+    },
+    {
+      "message": "who signed off on the inspection",
+      "label": "none"
+    },
+    {
+      "message": "when was the last maintenance cycle",
+      "label": "none"
+    },
+    {
+      "message": "where is the fuel data stored",
+      "label": "none"
+    },
+    {
+      "message": "why did the export fail",
+      "label": "none"
+    },
+    {
+      "message": "which model is used for embeddings",
+      "label": "none"
+    },
+    {
+      "message": "explain the retention policy",
+      "label": "none"
+    },
+    {
+      "message": "tell me about the architecture",
+      "label": "none"
+    },
+    {
+      "message": "what does section 4 say",
+      "label": "none"
+    },
+    {
+      "message": "thanks",
+      "label": "none"
+    },
+    {
+      "message": "hello there",
+      "label": "none"
+    },
+    {
+      "message": "ok got it",
+      "label": "none"
+    },
+    {
+      "message": "go on",
+      "label": "none"
+    },
+    {
+      "message": "is there a reminder in the handbook about safety drills",
+      "label": "none"
+    },
+    {
+      "message": "does the manual mention a todo list anywhere",
+      "label": "none"
+    },
+    {
+      "message": "what are the action items listed in the minutes",
+      "label": "none"
+    },
+    {
+      "message": "how do I add a task in the web app",
+      "label": "none"
+    },
+    {
+      "message": "which tasks did the report say were overdue",
+      "label": "none"
+    },
+    {
+      "message": "what is the follow up process for incidents",
+      "label": "none"
+    },
+    {
+      "message": "should I follow up on this?",
+      "label": "none"
+    },
+    {
+      "message": "does the policy require a reminder to be sent",
+      "label": "none"
+    },
+    {
+      "message": "where does it say to track this metric",
+      "label": "none"
+    },
+    {
+      "message": "what does the document say about assigning owners",
+      "label": "none"
+    },
+    {
+      "message": "how is a summary generated in this system",
+      "label": "none"
+    },
+    {
+      "message": "what did the summary section conclude",
+      "label": "none"
+    },
+    {
+      "message": "is the lookup feature documented",
+      "label": "none"
+    },
+    {
+      "message": "what search index does it use",
+      "label": "none"
+    },
+    {
+      "message": "how many chunks were made",
+      "label": "none"
+    },
+    {
+      "message": "what are the formulas for normalisation",
+      "label": "none"
+    },
+    {
+      "message": "describe the fleet composition",
+      "label": "none"
+    },
+    {
+      "message": "list the three main findings",
+      "label": "none"
+    },
+    {
+      "message": "compare the two quarters",
+      "label": "none"
+    },
+    {
+      "message": "what percentage of flights were delayed",
+      "label": "none"
+    },
+    {
+      "message": "define cosine similarity",
+      "label": "none"
+    },
+    {
+      "message": "does it cover emergency procedures",
+      "label": "none"
+    },
+    {
+      "message": "summarise the ai safety paper",
+      "label": "summarize-document"
+    },
+    {
+      "message": "give me a summary of the alignment paper",
+      "label": "summarize-document"
+    },
+    {
+      "message": "summarise the admission prospectus",
+      "label": "summarize-document"
+    },
+    {
+      "message": "tldr of the adbms formula sheet",
+      "label": "summarize-document"
+    },
+    {
+      "message": "overview of the genai training tracker",
+      "label": "summarize-document"
+    },
+    {
+      "message": "sum up the aerotwin defense deck",
+      "label": "summarize-document"
+    },
+    {
+      "message": "what is the ai safety paper about",
+      "label": "summarize-document"
+    },
+    {
+      "message": "brief me on the university prospectus",
+      "label": "summarize-document"
+    },
+    {
+      "message": "summarise abstract of the research paper",
+      "label": "summarize-document"
+    },
+    {
+      "message": "give me the gist of the fastapi architecture doc",
+      "label": "summarize-document"
+    },
+    {
+      "message": "summarise the refund and revision rules",
+      "label": "none"
+    },
+    {
+      "message": "summarise the merit calculation weights",
+      "label": "none"
+    },
+    {
+      "message": "give me a summary of the eligibility criteria",
+      "label": "none"
+    },
+    {
+      "message": "summarise what it says about binary search cost",
+      "label": "none"
+    },
+    {
+      "message": "overview of the admission fee rules",
+      "label": "none"
+    },
+    {
+      "message": "sum up the deficiency course requirements",
+      "label": "none"
+    }
+  ]
+}

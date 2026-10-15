@@ -1,0 +1,618 @@
+:root {
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-base: 18px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 30px;
+  --text-3xl: 36px;
+  --text-display: 56px;
+
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 40px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --color-white: #fafaf8;
+  /* Text that sits ON a saturated fill — primary buttons, the user's chat bubble,
+     status pills. It must NOT invert with the theme: --color-white is a SURFACE
+     token and correctly becomes near-black in dark mode, which would put dark
+     text on a teal button. This one stays white in both themes. */
+  --on-accent: #ffffff;
+
+  --color-gray-50: #f5f3f0;
+  --color-gray-100: #ede8e4;
+  --color-gray-200: #e0d9d1;
+  --color-gray-300: #c4b5aa;
+  --color-gray-400: #a89885;
+  --color-gray-500: #8b7b6e;
+  --color-gray-600: #6b5e55;
+  --color-gray-700: #4a423c;
+  --color-gray-800: #322d27;
+  --color-gray-900: #1a1510;
+
+  /* Modern Teal/Turquoise Accent — Tech-forward, professional */
+  --color-blue-50: #f0fdfa;
+  --color-blue-100: #ccfbf1;
+  --color-blue-200: #99f6e4;
+  --color-blue-600: #0891b2;
+  --color-blue-700: #0e7490;
+
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-200: #bbf7d0;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+
+  --color-orange-100: #fed7aa;
+  --color-orange-700: #b45309;
+
+  --color-yellow-50: #fefce8;
+  --color-yellow-700: #a16207;
+
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+
+  --text: var(--color-gray-700);
+  --text-h: var(--color-gray-900);
+  --text-b: var(--color-gray-700);
+  --bg: var(--color-white);
+  --border: var(--color-gray-200);
+  --code-bg: var(--color-gray-100);
+
+  /* Modern Teal Accent Tokens */
+  --accent: var(--color-blue-600);
+  --accent-bg: rgba(8, 145, 178, 0.08);
+  --accent-border: rgba(8, 145, 178, 0.25);
+  
+  --shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+
+  font: var(--text-base)/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: light;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+/* ==========================================================================
+   Dark palette
+   ==========================================================================
+   Applied in two situations, which is why the token list appears twice:
+
+     1. the viewer's OS is dark AND they have not explicitly chosen light
+     2. the viewer explicitly chose dark, whatever the OS says
+
+   Guarding the media query with :not([data-theme="light"]) is what lets an
+   explicit light choice win on a dark-mode machine. Without it, "Light" in
+   Settings would do nothing for those users.
+
+   Greys INVERT rather than shift: --color-gray-700 is a dark ink in light mode
+   and a light ink in dark mode, so every existing rule that reads a grey token
+   keeps meaning "readable body text" instead of turning to mud.
+   ========================================================================== */
+:root[data-theme="dark"] {
+  --color-white: #1c1815;      /* raised surfaces: cards, panels */
+  --color-gray-50: #0f0c0a;    /* page canvas, sits BEHIND cards */
+  --color-gray-100: #1a1410;   /* subtle fills, hovers, code blocks */
+  --color-gray-200: #27221d;   /* borders */
+  --color-gray-400: #6b5e55;
+  --color-gray-500: #8b7b6e;   /* muted/secondary text — 5.1:1 on the canvas */
+  --color-gray-700: #d4cfc7;   /* body text — warm light for dark mode */
+  --color-gray-800: #e4ddd4;
+  --color-gray-900: #f5f0e8;   /* headings */
+
+  /* Tinted surfaces become translucent washes so they read as the same hue
+     without glowing against a dark canvas. Teal-tinted for modern look. */
+  --color-blue-50: rgba(6, 182, 212, 0.12);
+  --color-blue-100: rgba(6, 182, 212, 0.22);
+  --color-blue-200: rgba(6, 182, 212, 0.34);
+  --color-blue-600: #06b6d4;   /* lifted teal for dark mode contrast */
+  --color-blue-700: #22d3ee;
+
+  --color-green-50: rgba(74, 222, 128, 0.14);
+  --color-green-100: rgba(74, 222, 128, 0.24);
+  --color-green-200: rgba(74, 222, 128, 0.36);
+  --color-green-600: #4ade80;
+  --color-green-700: #6ee7a8;
+
+  --color-orange-100: rgba(245, 158, 11, 0.24);
+  --color-orange-700: #fbbf24;
+
+  --color-yellow-50: rgba(250, 204, 21, 0.14);
+  --color-yellow-700: #fde047;
+
+  --color-red-50: rgba(248, 113, 113, 0.14);
+  --color-red-100: rgba(248, 113, 113, 0.24);
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+
+  --text: var(--color-gray-700);
+  --text-h: var(--color-gray-900);
+  --text-b: var(--color-gray-700);
+  --bg: var(--color-gray-50);
+  --border: var(--color-gray-200);
+  --code-bg: var(--color-gray-100);
+
+  --accent: var(--color-blue-600);
+  --accent-bg: rgba(6, 182, 212, 0.12);
+  --accent-border: rgba(6, 182, 212, 0.35);
+
+  /* A shadow that is merely darker is invisible on a dark canvas; depth comes
+     from a lighter hairline on top instead. */
+  --shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-white: #1c1815;
+    --color-gray-50: #0f0c0a;
+    --color-gray-100: #1a1410;
+    --color-gray-200: #27221d;
+    --color-gray-300: #332d27;
+    --color-gray-400: #6b5e55;
+    --color-gray-500: #8b7b6e;
+    --color-gray-600: #a89885;
+    --color-gray-700: #d4cfc7;
+    --color-gray-800: #e4ddd4;
+    --color-gray-900: #f5f0e8;
+
+    --color-blue-50: rgba(6, 182, 212, 0.12);
+    --color-blue-100: rgba(6, 182, 212, 0.22);
+    --color-blue-200: rgba(6, 182, 212, 0.34);
+    --color-blue-600: #06b6d4;
+    --color-blue-700: #22d3ee;
+
+    --color-green-50: rgba(74, 222, 128, 0.14);
+    --color-green-100: rgba(74, 222, 128, 0.24);
+    --color-green-200: rgba(74, 222, 128, 0.36);
+    --color-green-600: #4ade80;
+    --color-green-700: #6ee7a8;
+
+    --color-orange-100: rgba(245, 158, 11, 0.24);
+    --color-orange-700: #fbbf24;
+
+    --color-yellow-50: rgba(250, 204, 21, 0.14);
+    --color-yellow-700: #fde047;
+
+    --color-red-50: rgba(248, 113, 113, 0.14);
+    --color-red-100: rgba(248, 113, 113, 0.24);
+    --color-red-600: #f87171;
+    --color-red-700: #fca5a5;
+
+    --text: var(--color-gray-700);
+    --text-h: var(--color-gray-900);
+    --text-b: var(--color-gray-700);
+    --bg: var(--color-gray-50);
+    --border: var(--color-gray-200);
+    --code-bg: var(--color-gray-100);
+
+    --accent: var(--color-blue-600);
+    --accent-bg: rgba(6, 182, 212, 0.12);
+    --accent-border: rgba(6, 182, 212, 0.35);
+
+    --shadow:
+      0 1px 3px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: 
+    "sidebar header"
+    "sidebar main";
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.app-header {
+  grid-area: header;
+}
+
+.app-sidebar {
+  grid-area: sidebar;
+}
+
+.main-content {
+  grid-area: main;
+  background: var(--color-gray-50); 
+  overflow-y: auto;
+}
+
+h1, h2 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+p { margin: 0 0 var(--space-md); }
+code {
+  font-family: var(--mono);
+  display: inline-flex;
+  border-radius: var(--radius-sm);
+  color: var(--text-h);
+  font-size: var(--text-sm);
+  line-height: 135%;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--code-bg);
+}
+.form-error {
+  color: var(--color-red-700);
+  font-size: var(--text-sm);
+  margin-top: 6px;
+  font-weight: 500;
+}
+.visually-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Shared Transient Feedback Banner */
+.transient-error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background-color: var(--color-red-50);
+  border: 1px solid var(--color-red-100); 
+  color: var(--color-red-700);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  animation: slideInDown 0.3s ease;
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Shared Page States (Error & Empty) */
+.page-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  padding: var(--space-xl);
+}
+
+.page-state-icon {
+  padding: var(--space-md);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-md);
+  display: inline-flex;
+}
+
+.page-state-icon.error {
+  background-color: var(--color-red-50);
+  color: var(--color-red-700);
+}
+
+.page-state-icon.empty {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-500);
+}
+
+.page-state-title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text-h);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.page-state-message {
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  max-width: 400px;
+  margin: 0 0 var(--space-lg) 0;
+  line-height: 1.5;
+}
+/* Generic State Layouts */
+.state-wrapper-padded {
+  padding: var(--space-xl);
+}
+
+.state-wrapper-centered {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Reusable Skeleton Structures */
+.skeleton-row {
+  width: 100%;
+  height: 40px;
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-task-card {
+  height: 140px;
+  border-radius: var(--radius-md);
+}
+
+.skeleton-audit-row {
+  height: 60px;
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-detail-header {
+  height: 28px;
+  width: 250px;
+  margin-bottom: var(--space-lg);
+}
+/* Document Detail Skeletons */
+.skeleton-breadcrumb { width: 120px; height: 14px; margin-bottom: var(--space-sm); }
+.skeleton-title { width: 250px; height: 28px; }
+.skeleton-meta-label { width: 40%; height: 24px; margin-bottom: var(--space-xl); }
+.skeleton-line-full { width: 100%; height: 16px; margin-bottom: var(--space-md); }
+.skeleton-line-med { width: 80%; height: 16px; margin-bottom: var(--space-md); }
+.skeleton-line-long { width: 90%; height: 16px; }
+/* Base Mobile Elements (Hidden on Desktop) */
+.mobile-hamburger-btn,
+.mobile-close-btn,
+.sidebar-overlay {
+  display: none;
+}
+
+.header-content-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  /* 1. App Shell Grid Collapse */
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "main";
+  }
+
+  /* 2. Header Reflow */
+  .app-header {
+    padding: 0 var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .mobile-hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--color-gray-700);
+    padding: var(--space-xs);
+    cursor: pointer;
+  }
+
+  /* Hide the long name and logout text to save horizontal space */
+  .user-name-text,
+  .logout-text,
+  .brand-title {
+    display: none;
+  }
+
+  /* 3. Off-Canvas Sidebar Drawer */
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+    outline: none; /* Remove focus ring from the nav container itself */
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .mobile-close-btn {
+    display: flex;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    color: var(--color-gray-500);
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  /* 4. Backdrop Overlay */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+/* ==========================================================================
+   Touch Targets (Day 19)
+   ==========================================================================
+   Only on coarse pointers, so mouse users keep the tighter desktop density.
+
+   Selectors are prefixed with :root deliberately. A bare `input` is specificity
+   0,0,1 and loses to any component class such as .form-input (0,1,0), so the
+   first version of this block silently did nothing — measured, not assumed.
+   :root + element is 0,1,1, which wins by the smallest margin that works.
+   ========================================================================== */
+@media (pointer: coarse) {
+  :root button,
+  :root select,
+  :root input:not([type="checkbox"]):not([type="radio"]):not(.visually-hidden-input),
+  :root a[role="button"] {
+    min-height: 44px;
+  }
+
+  /* A control below 16px makes iOS Safari zoom the page on focus, and the page
+     is then left scrolled sideways. */
+  :root input:not(.visually-hidden-input),
+  :root select,
+  :root textarea {
+    font-size: max(16px, var(--text-sm));
+  }
+
+  /* Links that sit inside a sentence or a table row must not become 44px blocks;
+     vertical padding enlarges the hit area without breaking the line. */
+  :root .login-forgot-link,
+  :root .login-alt-action a,
+  :root .detail-back-link,
+  :root .source-link,
+  :root .browse-files-link {
+    display: inline-block;
+    padding-block: var(--space-xs);
+  }
+
+  /* The filename is the primary target in a stacked document card, so it gets
+     enough padding to clear 44px outright rather than land just under. */
+  :root .row-file-link {
+    display: inline-block;
+    padding-block: var(--space-sm);
+  }
+
+  /* Icon-only controls need width as well as height to be a real target. */
+  :root .btn-icon-delete,
+  :root .password-toggle-btn {
+    min-width: 44px;
+  }
+}
+
+/* ==========================================================================
+   Pagination
+   ========================================================================== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-md) 0;
+}
+
+.pagination-range {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.pagination-position {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+  white-space: nowrap;
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-h);
+  background-color: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: var(--color-gray-100);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pagination-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination-controls {
+    justify-content: space-between;
+  }
+}

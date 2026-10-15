@@ -1,0 +1,559 @@
+/* ==========================================================================
+   Document Detail Viewport Canvas (Gray Background Depth)
+   ========================================================================== */
+.detail-viewport {
+  padding: var(--space-lg) var(--space-xl);
+  width: 100%;
+  min-height: 100%;
+  background: var(--color-gray-50); /* Subtle gray canvas makes white cards pop */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+/* ==========================================================================
+   Header & Back Navigation Breadcrumbs
+   ========================================================================== */
+.detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detail-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.12s ease;
+  margin-bottom: var(--space-xxs);
+}
+
+.detail-back-link:hover {
+  color: var(--color-blue-700);
+  text-decoration: underline;
+}
+
+.detail-header h1 {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text-h);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.detail-breadcrumb {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
+.breadcrumb-current {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Bounded Record Metadata Card (Adminator Style Surface Elevation)
+   ========================================================================== */
+.detail-card-surface {
+  background: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-card-header {
+  padding: var(--space-lg) var(--space-lg) var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.detail-card-title-block {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.detail-card-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.detail-card-filename {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-h);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   High-Density Definition Property Rows (Key-Value)
+   ========================================================================== */
+.property-ledger {
+  display: flex;
+  flex-direction: column;
+}
+
+.property-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+}
+
+.property-row:last-child {
+  border-bottom: none;
+}
+
+.property-label {
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  font-weight: 400;
+}
+
+.property-value {
+  font-size: var(--text-sm);
+  color: var(--text-h);
+  font-weight: 500;
+  text-align: right;
+}
+
+.mono-text {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+}
+
+/* ==========================================================================
+   Footer Context Action Triggers
+   ========================================================================== */
+.detail-card-footer {
+  background: var(--color-gray-50);
+  padding: var(--space-sm) var(--space-lg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-action-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  transition: background-color 0.12s ease;
+}
+
+.btn-action-primary:hover {
+  background: var(--color-blue-700);
+}
+
+/* ==========================================================================
+   System Fallback Framework Layouts
+   ========================================================================== */
+.management-fallback {
+  padding: var(--space-xl);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  background: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+}
+
+.management-fallback.error h2 {
+  font-size: var(--text-lg);
+  color: var(--color-red-700);
+  margin: 0;
+}
+
+.management-fallback.error p {
+  margin: 0;
+}
+
+.fallback-action-row {
+  margin-top: var(--space-sm);
+  display: flex;
+  justify-content: center;
+}
+/* --- Open original ------------------------------------------------------- */
+
+.detail-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.btn-open-original {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-blue-700, #1d4ed8);
+  background-color: var(--color-blue-50, #eff6ff);
+  border: 1px solid var(--color-blue-200, #bfdbfe);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  white-space: nowrap;
+}
+
+.btn-open-original:hover:not(:disabled) {
+  background-color: var(--color-blue-100, #dbeafe);
+}
+
+.btn-open-original:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.detail-open-error {
+  margin: 0;
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-xs);
+  color: var(--color-red-700, #b91c1c);
+  background-color: var(--color-red-50, #fef2f2);
+  border-bottom: 1px solid var(--border);
+}
+
+.spin {
+  animation: detail-spin 0.9s linear infinite;
+}
+
+@keyframes detail-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Download is the secondary action: viewing is the common case, saving a file to
+   the user's machine is the deliberate one. */
+.btn-download-original {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-b, #374151);
+  background-color: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  white-space: nowrap;
+}
+
+.btn-download-original:hover:not(:disabled) {
+  background-color: var(--color-gray-100, #f3f4f6);
+}
+
+.btn-download-original:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ==========================================================================
+   Two-Column Detail Layout
+   ==========================================================================
+   Metadata is a narrow rail; the original file takes everything left over. A
+   single bounded card left the preview under half the page width with the right
+   side of the screen empty, which is unreadable without zooming.
+   ========================================================================== */
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: var(--space-xl);
+  align-items: start;
+  width: 100%;
+}
+
+/* The metadata rail follows the preview while it scrolls — the file's identity
+   should stay on screen while you are reading it. */
+.detail-side {
+  position: sticky;
+  top: var(--space-lg);
+}
+
+.detail-main {
+  min-width: 0; /* lets the grid track actually shrink instead of overflowing */
+}
+
+/* Below this the two columns are both too narrow to be useful, so stack them
+   and let the preview run full width. */
+@media (max-width: 1024px) {
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-side {
+    position: static;
+  }
+}
+
+/* ==========================================================================
+   Card Action Band
+   ========================================================================== */
+.detail-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--border);
+}
+
+.detail-card-actions button {
+  flex: 1;
+  justify-content: center;
+}
+
+.detail-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.btn-open-original {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-blue-700, #1d4ed8);
+  background-color: var(--color-blue-50, #eff6ff);
+  border: 1px solid var(--color-blue-200, #bfdbfe);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  white-space: nowrap;
+}
+
+.btn-open-original:hover:not(:disabled) {
+  background-color: var(--color-blue-100, #dbeafe);
+}
+
+.btn-open-original:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Download is the secondary action: viewing is the common case, saving a file to
+   the user's machine is the deliberate one. */
+.btn-download-original {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-b, #374151);
+  background-color: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  white-space: nowrap;
+}
+
+.btn-download-original:hover:not(:disabled) {
+  background-color: var(--color-gray-100, #f3f4f6);
+}
+
+.btn-download-original:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.detail-open-error {
+  margin: 0;
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-xs);
+  color: var(--color-red-700, #b91c1c);
+  background-color: var(--color-red-50, #fef2f2);
+  border-bottom: 1px solid var(--border);
+}
+
+.spin {
+  animation: detail-spin 0.9s linear infinite;
+}
+
+@keyframes detail-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Preview Surface
+   ==========================================================================
+   Same card chrome as the metadata panel so the two read as one system.
+   ========================================================================== */
+.preview-surface {
+  overflow: hidden; /* keeps the iframe's square corners inside the radius */
+}
+
+.preview-surface-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.preview-surface-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.preview-surface-name {
+  font-size: var(--text-sm);
+  color: var(--text-h);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Tall enough to read a page of a document without zooming, which was the whole
+   complaint; capped so it does not run away on very tall monitors. */
+.document-preview-frame {
+  display: block;
+  width: 100%;
+  height: clamp(520px, calc(100vh - 260px), 900px);
+  border: none;
+  background-color: var(--color-white);
+}
+
+/* ==========================================================================
+   Preview Placeholder (before the file is opened)
+   ==========================================================================
+   The right column would otherwise be dead space, which is what made the page
+   look unbalanced even with no preview open.
+   ========================================================================== */
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  text-align: center;
+  padding: var(--space-xl);
+  min-height: clamp(320px, calc(100vh - 260px), 900px);
+}
+
+.preview-placeholder-icon {
+  color: var(--color-gray-400, #9ca3af);
+  margin-bottom: var(--space-xs);
+}
+
+.preview-placeholder-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.preview-placeholder-hint {
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  max-width: 42ch;
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Narrow-Rail Corrections
+   ==========================================================================
+   The header and property rows were built for a 680px card. In a 360px rail the
+   side-by-side label/value layout squeezes the value into an awkward wrap, and
+   the filename truncates after a few characters. Both are fixed by giving the
+   value its own line rather than fighting for horizontal room.
+   ========================================================================== */
+.detail-side .detail-card-header {
+  align-items: flex-start;
+}
+
+.detail-side .detail-card-title-block {
+  align-items: flex-start;
+}
+
+.detail-side .detail-card-icon {
+  margin-top: 2px;
+}
+
+/* Two lines of a real filename beats one line of an ellipsis. Filenames break at
+   underscores and dots, so allow a break anywhere rather than overflowing. */
+.detail-side .detail-card-filename {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.detail-side .property-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xxs, 4px);
+}
+
+.detail-side .property-value {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* Full-width buttons stack rather than shrink below the point where their labels
+   would be clipped. */
+@media (max-width: 1200px) and (min-width: 1025px) {
+  .detail-card-actions {
+    flex-direction: column;
+  }
+}
+
+/* Text preview rendered in-app. Chrome will not display text/markdown or
+   text/csv in a frame — it downloads them — so these formats are decoded and
+   shown here instead of being handed to the browser. */
+.document-preview-text {
+  margin: 0;
+  padding: var(--space-lg);
+  height: clamp(520px, calc(100vh - 260px), 900px);
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  color: var(--text-h);
+  background-color: var(--color-white);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}

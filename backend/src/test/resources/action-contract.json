@@ -1,0 +1,50 @@
+{
+  "_about": [
+    "THE ACTION CONTRACT, as the browser sees it. Day 14b.",
+    "",
+    "Why this file exists. The GenAI boundary has had two conformance tests since Day 14 —",
+    "one against /openapi.json and one against GET /tools — so Python and Java cannot drift",
+    "without a build failing. The BROWSER boundary had none. Type.ts was hand-written",
+    "against Spring's DTOs and checked by nobody, which is two of the four copies the",
+    "Month 2 drift came from.",
+    "",
+    "It is asserted from BOTH SIDES against the same bytes:",
+    "  backend   ActionContractSnapshotTest reflects over the enums and payload records",
+    "  frontend  src/Type.conformance.test.ts reads an identical copy at src/test/",
+    "",
+    "So this snapshot cannot be edited to make either side pass: changing it to suit the",
+    "frontend breaks the Java test, and changing Java breaks this snapshot until it is",
+    "regenerated, at which point the frontend test fails until Type.ts follows. That is the",
+    "property a comment saying 'keep these in sync' never had.",
+    "",
+    "WHAT IT FOUND IMMEDIATELY, before it had ever guarded anything:",
+    "  * ActionService returned the summary as a BARE STRING while ActionCard.tsx renders",
+    "    result.summary — so an approved summary rendered as an empty card, no error.",
+    "  * Type.ts exported `ActionStatus = 'pending' | 'approved' | 'rejected'`, which",
+    "    matches no backend enum at all. It had zero consumers, which is why nothing broke.",
+    "",
+    "Spelling note. Keys here are the WIRE spelling the browser receives — camelCase for",
+    "Spring's payloads, hyphens for the discriminator values. GET /tools publishes Python's",
+    "snake_case for the same tools and that is not a contradiction: Python's schema is what",
+    "a MODEL may produce, this is what a BROWSER receives, and ActionProposer is the",
+    "translation between them. ToolRegistryConformanceTest asserts that bridge."
+  ],
+
+  "actionTypes": ["create-task", "summarize-document", "lookup-knowledge"],
+  "decisions": ["approved", "rejected"],
+  "statuses": ["completed", "rejected", "failed"],
+  "priorities": ["low", "medium", "high"],
+  "taskStatuses": ["todo", "in-progress", "done"],
+
+  "payloads": {
+    "create-task": ["title", "priority"],
+    "summarize-document": ["documentId", "documentName"],
+    "lookup-knowledge": ["query"]
+  },
+
+  "results": {
+    "create-task": ["id", "title", "priority", "status", "createdAt", "completedAt", "sourceSessionId"],
+    "summarize-document": ["summary"],
+    "lookup-knowledge": ["snippets"]
+  }
+}

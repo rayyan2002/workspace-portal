@@ -1,0 +1,52 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# The golden set loads both models and queries Postgres, so it takes about two minutes and
+# cannot run anywhere the corpus does not exist. Excluded from the default run so `pytest`
+# stays fast and hermetic; run it deliberately:
+#
+#     PYTHONPATH=$PWD ./.venv/bin/python -m pytest -m golden
+#
+# Deselected rather than skipped: a skipped test prints a reassuring "s" and proves nothing,
+# which is the shape of signal this project keeps finding wrong.
+markers = [
+    "golden: regression over the golden question set (slow, needs Postgres and both models)",
+    # Needs the EMBEDDING model only (~130MB, ~1s to load, ~1.1s to fit) and no database.
+    # Opt-in for the same reason as golden: the default suite exercises the contract, and
+    # loading weights to assert that a 422 is a 422 makes a suite nobody runs.
+    "routing: tool-routing accuracy over the held-out set (needs the embedding model)",
+]
+addopts = "-q -m 'not golden and not routing'"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's whole parameter-declaration idiom is `x: T = File(...)` / `Form(...)` / `Depends(...)`.
+# B008 ("no function calls in argument defaults") is correct in general and wrong here, because
+# these are declarations FastAPI reads, not values evaluated once and shared.
+extend-immutable-calls = [
+    "fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Depends",
+]
+
+[tool.pyright]
+# Pylance IS pyright, and it reads this section. Without it, the type checker analyses the
+# code against the SYSTEM python, where fastapi/pydantic/torch are not installed — which is
+# why every import lit up red while the code ran perfectly. Putting it here rather than in a
+# VS Code UI setting means it works for anyone who opens the folder, and on the CLI too.
+venvPath = "."
+venv = ".venv"
+# benchmarks was omitted here and its type errors went unseen for a day. It is
+# executable code that gets shown to people; it gets checked like the rest.
+include = ["app", "tests", "benchmarks"]
+typeCheckingMode = "basic"
+
+[tool.ruff.lint.per-file-ignores]
+# Benchmarks are scripts, not library code: written to be read top-to-bottom and run once.
+# Long f-string table headers, `count = lambda t: ...` and one-line guard clauses are all
+# clearer here than the refactor ruff would ask for. Correctness rules still apply.
+"benchmarks/*.py" = ["E501", "E731", "E702"]

@@ -1,0 +1,245 @@
+/* ==========================================================================
+   1. Standalone Viewport Canvas
+   ========================================================================== */
+.login-viewport {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-gray-50);
+  padding: var(--space-xl);
+}
+
+/* ==========================================================================
+   2. Centered Authentication Card
+   ========================================================================== */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* Gentle elevation to lift off the gray canvas */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 40px var(--space-xl);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-brand-icon {
+  color: var(--accent);
+  margin-bottom: var(--space-md);
+}
+
+.login-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 var(--space-xs) 0;
+  letter-spacing: -0.02em;
+}
+
+.login-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
+/* ==========================================================================
+   3. Form Elements, Inputs & Accessibility Focus Rings
+   ========================================================================== */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--text-h);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Explicit accessibility focus state */
+.form-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); /* Soft accent halo */
+}
+/* Chrome paints its own pale-yellow fill over autofilled inputs and ignores
+   background-color, so it has to be masked with an inset shadow. The mask must
+   follow the THEME — hardcoding white put near-white autofilled text on a white
+   box in dark mode, i.e. an invisible email address. */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover, 
+.form-input:-webkit-autofill:focus, 
+.form-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-white) inset !important;
+  -webkit-text-fill-color: var(--text-h) !important;
+  caret-color: var(--text-h);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ==========================================================================
+   4. Primary Action & Feedback States
+   ========================================================================== */
+.btn-login-submit {
+  width: 100%;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  margin-top: var(--space-xs);
+}
+
+.btn-login-submit:hover:not(:disabled) {
+  background: var(--color-blue-700);
+}
+
+.btn-login-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-red-50); /* Subtle red tint */
+  border: 1px solid #fecaca;
+  color: var(--color-red-700);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-lg);
+  font-size: var(--text-sm);
+}
+
+.login-error-icon {
+  flex-shrink: 0;
+  color: var(--color-red-700);
+}
+
+/* ==========================================================================
+   5. Demo Credentials Hint Block
+   ========================================================================== */
+
+/* ==========================================================================
+   6. Password Visibility Toggle
+   ========================================================================== */
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* Add right padding so the text doesn't slide under the icon */
+.password-input-wrapper .form-input {
+  padding-right: 40px; 
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: var(--space-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-h);
+}
+
+.password-toggle-btn:focus {
+  outline: 2px solid var(--color-blue-100);
+}
+/* --- Sign-up / reset affordances ----------------------------------------- */
+
+.login-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--color-green-700, #15803d);
+  background-color: var(--color-green-50, #f0fdf4);
+  border: 1px solid var(--color-green-200, #bbf7d0);
+  border-radius: var(--radius-sm);
+}
+
+.login-notice-icon {
+  flex-shrink: 0;
+}
+
+.login-password-block {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sits directly under the password field, where someone realises they are stuck. */
+.login-forgot-link {
+  align-self: flex-end;
+  margin-top: var(--space-xs);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.login-forgot-link:hover {
+  text-decoration: underline;
+}
+
+.login-alt-action {
+  margin: var(--space-md) 0 0 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+}
+
+.login-alt-action a {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.login-alt-action a:hover {
+  text-decoration: underline;
+}

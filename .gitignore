@@ -1,0 +1,35 @@
+# Root ignores for the portfolio fork.
+#
+# backend/.gitignore and frontend/.gitignore still apply inside their own
+# directories and carry the detailed rules (target/, node_modules, dist,
+# logs/, uploads/, .claude/*). This file only covers the gaps that exist at
+# the parent level, where neither of those two files reaches.
+
+## Secrets
+# backend/.gitignore already ignores *.env (with !test.env) inside backend/.
+# frontend/.gitignore has no .env rule at all — frontend/dist/.env is caught
+# only incidentally by its `dist` entry, and frontend/public/.env is caught by
+# nothing. Vite reads .env from the project root, not public/, so that file
+# feeds no build; it is just copied verbatim into dist/ and served to every
+# visitor. Ignore env files everywhere and let the backend's !test.env
+# negation keep working in its own scope.
+*.env
+.env
+
+## macOS
+# Each service ignores its own .DS_Store; this catches one at the repo root.
+.DS_Store
+
+## Local tooling
+# Same split the two services use: per-machine settings stay out, the portable
+# run configuration is tracked.
+.claude/*
+!.claude/launch.json
+
+## Assistant-facing context notes
+# Orientation notes for a fresh assistant session, not portfolio material —
+# and both carry the company GitLab URL, which has no place in a public
+# repository. They stay on disk (MONTH3_CONTEXT.md is the Month 3 handoff);
+# they just do not ship.
+backend/PROJECT_CONTEXT.md
+backend/genai-service/MONTH3_CONTEXT.md

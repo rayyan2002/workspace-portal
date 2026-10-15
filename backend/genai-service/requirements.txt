@@ -1,0 +1,60 @@
+# Pinned hard, and the pins are not cosmetic.
+#
+# This machine is an Intel Mac (x86_64). PyTorch stopped publishing macOS x86_64
+# wheels after 2.2.2, so 2.2.2 is a hard ceiling, not a preference. Everything
+# below is pinned to what torch 2.2.2 can actually work with:
+#
+#   numpy<2            torch 2.2.2 is compiled against the NumPy 1.x C API.
+#                      With numpy 2.x it imports but cannot initialise NumPy.
+#   transformers 4.x   transformers 5.x requires torch>=2.5 and silently
+#                      disables PyTorch on 2.2.2 ("Models won't be available").
+#   huggingface-hub<1  transformers 4.44 does not support the 1.x hub API.
+#
+# Unpinning any of these produces an install that exits 0 and then cannot load
+# a model. See INTEGRATION_CONTRACT.md §6 and notes.md, Month 3 Day 1.
+
+torch==2.2.2
+numpy==1.26.4
+transformers==4.44.2
+tokenizers==0.19.1
+huggingface-hub==0.24.6
+sentence-transformers==3.0.1
+
+# Day 15: the tool-routing classifier. A LogisticRegression over the bge vectors this
+# service already computes — see app/intent.py for why a classifier and not a prompt.
+#
+# It was already installed on this machine as a TRANSITIVE dependency of
+# sentence-transformers, which is exactly why it is pinned here now: code that imports a
+# package it never declared works until the day the parent drops it, and then fails at
+# import time on a fresh clone. Verified working against numpy 1.26.4 and the torch 2.2.2
+# ceiling documented above.
+scikit-learn==1.9.1
+
+# Extraction. Day 3 supports exactly what DocumentService accepts at upload:
+# .pdf .txt .md .markdown .csv .docx .xlsx — the ALLOW-LIST is the specification, not the
+# corpus. There are no DOCX files uploaded today; building from the corpus would have
+# shipped a hole that the first .docx upload fell into.
+pypdf==5.1.0
+openpyxl==3.1.5
+python-docx==1.1.2
+
+# Postgres access. Python holds SELECT only on the chunk tables — see
+# INTEGRATION_CONTRACT.md rule R1. Spring performs every write.
+psycopg[binary]==3.2.3
+
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+pydantic==2.11.7
+pydantic-settings==2.9.1
+python-multipart==0.0.20
+
+# Test-only
+pytest==8.3.5
+httpx==0.28.1
+
+# Lint. Declared because the README tells a reader to run it and a fresh venv could not:
+# ruff was installed here by hand and never written down, so `python -m ruff check` failed
+# with "No module named ruff" on a clean clone. Found by a clean-room run, Day 19.
+# Type checking is NOT here on purpose — pyright runs through `npx pyright`, which needs
+# Node rather than this environment.
+ruff==0.9.6

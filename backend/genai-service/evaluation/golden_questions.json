@@ -1,0 +1,130 @@
+{
+  "_about": [
+    "Day 13's golden set. Known questions with known sources, so retrieval and citation",
+    "correctness stop being impressions.",
+    "",
+    "Every question is grounded in text that actually exists in the corpus — the expected",
+    "answer fragments were copied from the chunks, not written from memory.",
+    "",
+    "SEEDED STUBS ARE EXCLUDED ON PURPOSE. quarterly_financial_report.pdf,",
+    "maintenance_log_Q2.md, FastAPI_Proxy_Architecture.md and test.md contain nothing but",
+    "'Placeholder content for a <filename>'. Day 6 measured two of them matching each other",
+    "at 0.857 while sharing no subject, and two of the four anchors that set min_score were",
+    "stubs scoring on filename echo. A golden set built on them would measure the corpus",
+    "defect rather than the system.",
+    "",
+    "UNANSWERABLE cases are not filler. They are what makes insufficient_context",
+    "measurable: a system that answers everything scores perfectly on answerable questions",
+    "alone."
+  ],
+  "questions": [
+    {
+      "id": "adbms-blocks",
+      "question": "What is the formula for the number of blocks in a file?",
+      "expect_document": "ADBMS_Formula_Sheet.md.pdf",
+      "expect_answer_contains": [
+        "records",
+        "block"
+      ],
+      "answerable": true
+    },
+    {
+      "id": "adbms-binary-search",
+      "question": "What is the cost of a binary search on a sorted file?",
+      "expect_document": "ADBMS_Formula_Sheet.md.pdf",
+      "expect_answer_contains": [
+        "log"
+      ],
+      "answerable": true
+    },
+    {
+      "id": "aerotwin-flight-data",
+      "question": "Where do the live flight positions come from?",
+      "expect_document": "AeroTwin_Defense_Prep.pdf",
+      "expect_answer_contains": [
+        "OpenSky"
+      ],
+      "answerable": true
+    },
+    {
+      "id": "aerotwin-degradation-data",
+      "question": "Which dataset is used for engine degradation?",
+      "expect_document": "AeroTwin_Defense_Prep.pdf",
+      "expect_answer_contains": [
+        "C-MAPSS"
+      ],
+      "answerable": true
+    },
+    {
+      "id": "setup-part-count",
+      "question": "How many numbered parts does the project setup document contain in total?",
+      "expect_document": "project_setup.txt",
+      "expect_answer_contains": [
+        "5"
+      ],
+      "answerable": true,
+      "_note": "Counting is synthesis. The local model answered 4; Gemini answered 5."
+    },
+    {
+      "id": "setup-first-part",
+      "question": "What is Part 1 of the project setup about?",
+      "expect_document": "project_setup.txt",
+      "expect_answer_contains": [
+        "Setup"
+      ],
+      "answerable": true
+    },
+    {
+      "id": "tracker-stack",
+      "question": "What technology stack is the final project built on?",
+      "expect_document": "Junior_Fullstack_GenAI_Training_Tracker.xlsx",
+      "expect_answer_contains": [
+        "Spring"
+      ],
+      "answerable": true
+    },
+    {
+      "id": "unanswerable-france",
+      "question": "What is the capital of France?",
+      "expect_document": null,
+      "expect_answer_contains": [],
+      "answerable": false
+    },
+    {
+      "id": "unanswerable-football",
+      "question": "Who won the 1998 FIFA World Cup final?",
+      "expect_document": null,
+      "expect_answer_contains": [],
+      "answerable": false
+    },
+    {
+      "id": "unanswerable-recipe",
+      "question": "How do I bake sourdough bread at home?",
+      "expect_document": null,
+      "expect_answer_contains": [],
+      "answerable": false
+    },
+    {
+      "id": "admission-policy",
+      "question": "WHAT IS THE ADMISSION POLICY",
+      "expect_document": "University_Admission_Prospectus_2027.pdf",
+      "expect_answer_contains": [
+        "admission"
+      ],
+      "answerable": true,
+      "_note": "Day 18b's regression case, in the user's own wording and capitalisation. The chunk describing the admission process ranked 7th at 0.588 — under the 0.60 floor and outside a top_k of 5 — so the model was handed a refunds table and two page headers and declined. Reported as 'Gemini is broken'. The phrasing matters and must not be tidied: 'Tell me about admission policy' scores the same chunk 0.639 and always worked, which is why this looked intermittent.",
+      "expect_chunk_contains": "select up to three program preferences"
+    },
+    {
+      "id": "admission-process",
+      "question": "What is the admission process?",
+      "expect_document": "University_Admission_Prospectus_2027.pdf",
+      "expect_answer_contains": [
+        "merit"
+      ],
+      "answerable": true,
+      "_note": "The same question with one word changed. 'process' scores the answering chunk 0.623 against 'policy' at 0.588 — a 0.035 swing that decided whether the system answered at all. Kept as the control for the case above.",
+      "expect_chunk_contains": "select up to three program preferences"
+    }
+  ]
+}

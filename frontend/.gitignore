@@ -1,0 +1,36 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local tooling
+# .claude holds per-machine run configuration. M3 D17: launch.json is now
+# portable — `npm run dev`, no absolute paths — so it is tracked, and a fresh
+# clone can start the dev server. Everything else under .claude/ stays ignored.
+#
+# The backend and GenAI service are NOT launched from here. They live in the other
+# repository and are launched from its own .claude/launch.json; the entries that
+# used to be here reached across repos with absolute paths, which is the thing
+# that made this file unshareable in the first place.
+.claude/*
+!.claude/launch.json

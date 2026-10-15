@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.idea/
+
+# Coverage data. pytest-cov is installed on demand (see benchmarks/COMMANDS.md) and
+# never pinned, so these files appear only while someone is measuring.
+.coverage
+.coverage.*
+htmlcov/

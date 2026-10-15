@@ -1,0 +1,71 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### Local tooling ###
+# .claude holds per-machine run configuration. It was ignored WHOLESALE because
+# launch.json hardcoded absolute paths and was meaningless on anyone else's machine
+# — true of the file as it stood, and the wrong fix: the run configuration is the
+# one piece of local tooling every contributor needs, and ignoring it meant a fresh
+# clone had no way to start the services at all.
+#
+# M3 D17: the paths are now relative to the repository root, so the file is
+# portable and is tracked. Everything else under .claude/ stays ignored, because
+# settings.local.json and friends genuinely are per-machine.
+#
+# The frontend's dev server is NOT here. It lives in its own repository and is
+# launched from its own .claude/launch.json — a path reaching across two repos
+# would have been absolute again by another name.
+.claude/*
+!.claude/launch.json
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+uploads/
+
+## mac
+.DS_Store
+
+# Secrets. The GenAI service reads genai-service/.env via pydantic-settings
+# (env_prefix="GENAI_"), so an API key lives there. A key committed once is in the history
+# forever and rotating it is the only fix — ignore the file before it is ever created.
+.env
+*.env
+!test.env
+
+# Day 17: orphaned upload files quarantined out of uploads/ pending deletion.
+# They matched no documents row; see BACKLOG item 15.
+uploads-orphans-quarantine/
+
+# Day 18: the GenAI service writes rotating logs here (app.log, answers.jsonl).
+# answers.jsonl carries no document text, question or answer — see app/observability.py
+# and tests/test_log_redaction.py — but it is still operational data, not source.
+logs/
+genai-service/logs/

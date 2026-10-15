@@ -1,0 +1,131 @@
+# Continuous integration. Month 3, Day 17.
+#
+# WHY THIS DID NOT EXIST UNTIL NOW, AND WHY IT MATTERS MORE THAN IT LOOKS.
+# Until today nothing ran this project's tests except a person typing `./mvnw test`. That
+# turns "this class has no test" from a gap into a certainty: JwtSecretValidator — the single
+# most security-critical piece of configuration handling in the application — went two months
+# with no test, and nothing would ever have reported it.
+#
+# The three suites run as SEPARATE JOBS on purpose. They have genuinely different needs: the
+# Python suite needs no database, the frontend needs no backend, and only Spring needs
+# Postgres with pgvector. One job would make every failure look like everyone's problem and
+# would couple the fastest feedback to the slowest setup.
+#
+# NOT YET VERIFIED AGAINST A REAL RUNNER. This file is written from the project's actual
+# local commands and the YAML parses, but no GitHub Actions run has executed it — there is no
+# remote configured. The first push will be the first real test of it, and the pgvector
+# service container is the part most likely to need adjusting.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  genai:
+    name: GenAI service (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: genai-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # The pins are not cosmetic — torch 2.2.2 is a hard ceiling on the dev machine (Intel
+      # macOS wheels stopped there) and numpy<2 follows from torch's C API. Installing from
+      # requirements.txt rather than loosening them here keeps CI testing what runs locally.
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # The default suite loads no models and touches no database: conftest sets
+      # GENAI_LOAD_MODELS=false, and the `golden` and `routing` markers are excluded by
+      # pyproject's addopts. Those two need weights and are deliberately opt-in.
+      - name: Test
+        run: python -m pytest tests -q
+
+      - name: Lint
+        run: |
+          pip install ruff
+          ruff check app tests benchmarks
+
+  backend:
+    name: Backend (Spring Boot)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # pgvector's own image: the plain postgres image has no `vector` type, and the
+        # migrations create a vector(384) column, so Flyway fails on V1 without it.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: knowledge_assistant
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_URL: jdbc:postgresql://localhost:5432/knowledge_assistant
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      # The suite runs under @ActiveProfiles("test"), which is a development profile, so the
+      # checked-in signing key is permitted here exactly as it is locally. A real secret is
+      # set anyway: CI should not be the one place the insecure default is exercised.
+      JWT_SECRET: ci-only-signing-key-at-least-thirty-two-bytes-long
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Test
+        run: ./mvnw -B test
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    steps:
+      # The frontend lives in its own repository. This job exists so the CONTRACT TESTS run
+      # on every backend change: Type.conformance.test.ts asserts Type.ts against
+      # action-contract.json, which the backend's ActionContractSnapshotTest holds Spring to.
+      # Checking it out here is what makes a one-sided contract change fail.
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/knowledge-assistant-fe
+          path: frontend
+        continue-on-error: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Test
+        working-directory: frontend
+        run: |
+          if [ ! -f package.json ]; then
+            echo "frontend repository not reachable from this workflow — skipping."
+            echo "Remove continue-on-error above once the repository name is confirmed."
+            exit 0
+          fi
+          npm ci
+          npx tsc -b
+          npm test

@@ -1,0 +1,111 @@
+{
+  "registry_version": "321a0e969bd9",
+  "tools": [
+    {
+      "arguments_schema": {
+        "additionalProperties": false,
+        "description": "Mirrors Spring's CreateTaskPayload exactly: title + priority, nothing else.\n\n`description` was here and has been removed: no consumer exists. Spring's payload does\nnot accept it, the tasks table has no column for it, and the frontend's ActionProposal\nunion does not read it. An extra field with no consumer is how the four-copies drift\nstarted in Month 2 \u2014 this one was two days old.\n\nmax_length 255 matches `tasks.title VARCHAR(255)`, so an over-long title is rejected\nhere rather than surfacing from Postgres as a 500.",
+        "properties": {
+          "priority": {
+            "description": "Matches TaskPriority. Month 2 hardcoded 'medium'; Month 3 infers it",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "tool": {
+            "const": "create-task",
+            "default": "create-task",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "priority"
+        ],
+        "title": "CreateTaskArguments",
+        "type": "object"
+      },
+      "description": "Track a piece of work the user asked to be remembered. Spring creates the task row only after a human approves it.",
+      "name": "create-task"
+    },
+    {
+      "arguments_schema": {
+        "additionalProperties": false,
+        "description": "TWO FIELDS WITH TWO DIFFERENT AUTHORS, which is the whole point of this class.\n\n`chunk_ordinal` is what a MODEL may state. `document_id` is what CODE resolved it to.\nNothing produces both, and the distinction is load-bearing: this service must never ask\nthe model for a document id, because a UUID costs 36 tokens and measurably stops the\n0.5B model citing at all, and it cannot know a filename it was never shown.\n\nSo the chain is: the model quotes a sentence -> `resolve_quote` turns the quote into a\n1-based ordinal over the chunks ACTUALLY SENT -> this service looks that ordinal up in\nits own retrieval result and fills in `document_id`. Every step after the quote is\narithmetic over data this service already holds.\n\n`document_id` was missing until Day 14b and that was the gap: INTEGRATION_CONTRACT.md\n\u00a75 specified the ordinal-to-document translation, Spring's SummarizePayload needs\n{documentId, documentName}, and NOTHING PERFORMED THE TRANSLATION. Jackson failed\nclosed on the mismatch \u2014 loudly, with \"Unrecognized field\", rather than nulling \u2014 so it\nwas latent rather than silent, but a proposal for this tool could not have been\nexecuted by the backend it was addressed to.\n\nSpring still derives `documentName` from its own `documents` row and RE-CHECKS\nOWNERSHIP rather than trusting this field. A document id arriving over HTTP is a claim;\nSpring owns that table and is the only side that can verify it.",
+        "properties": {
+          "chunk_ordinal": {
+            "description": "1-based index into the chunks sent for this request. Resolved from a quote",
+            "minimum": 1,
+            "title": "Chunk Ordinal",
+            "type": "integer"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The document the cited chunk belongs to, RESOLVED IN CODE from chunk_ordinal \u2014 never stated by the model. Null only inside this service before resolution; a proposal that still has null here is dropped rather than sent",
+            "title": "Document Id"
+          },
+          "tool": {
+            "const": "summarize-document",
+            "default": "summarize-document",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chunk_ordinal"
+        ],
+        "title": "SummarizeDocumentArguments",
+        "type": "object"
+      },
+      "description": "Summarise the document a cited chunk belongs to. The MODEL states only a chunk ordinal, never an identifier; `document_id` is resolved from it in code before the proposal leaves this service, and Spring maps that to a filename and re-checks ownership.",
+      "name": "summarize-document"
+    },
+    {
+      "arguments_schema": {
+        "additionalProperties": false,
+        "description": "Mirrors Spring's LookupPayload: a single query string.",
+        "properties": {
+          "query": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "tool": {
+            "const": "lookup-knowledge",
+            "default": "lookup-knowledge",
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "LookupKnowledgeArguments",
+        "type": "object"
+      },
+      "description": "Search the user's documents for something the current answer did not cover.",
+      "name": "lookup-knowledge"
+    }
+  ]
+}

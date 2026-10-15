@@ -1,0 +1,210 @@
+/* ==========================================================================
+   Settings Page
+   ========================================================================== */
+.settings-page-wrapper {
+  padding: var(--space-xl);
+  background-color: var(--color-gray-50);
+  min-height: 100vh;
+  width: 100%;
+}
+
+.settings-header {
+  margin-bottom: var(--space-xl);
+}
+
+.settings-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-xs);
+}
+
+.settings-header p {
+  color: var(--color-gray-500);
+  font-size: var(--text-sm);
+}
+
+/* Cards sit in a responsive grid rather than a single 600px column. Stacked at a
+   fixed width they left most of the page empty and pinned everything against the
+   navigation rail — the same problem the document detail page had. */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.settings-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: 100%;
+}
+
+.settings-card-header {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background-color: var(--color-gray-50);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-icon-user {
+  color: var(--color-blue-600);
+}
+
+.settings-icon-info {
+  color: var(--color-gray-500);
+}
+
+.settings-property-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-property-row {
+  display: flex;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-property-row:last-child {
+  border-bottom: none;
+}
+
+.settings-property-label {
+  flex: 1;
+  color: var(--color-gray-500);
+  font-size: var(--text-sm);
+}
+
+.settings-property-value {
+  flex: 2;
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.settings-notice {
+  padding: var(--space-md) var(--space-lg);
+  color: var(--color-gray-500);
+  font-size: var(--text-sm);
+  background-color: var(--color-white);
+}
+/* ==========================================================================
+   Appearance / Theme Picker
+   ========================================================================== */
+.settings-card-body {
+  padding: var(--space-lg);
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xxs);
+  padding: var(--space-md) var(--space-sm);
+  background-color: var(--color-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+  text-align: center;
+}
+
+.theme-option:hover {
+  border-color: var(--accent-border);
+  background-color: var(--color-gray-50);
+}
+
+/* Selection is carried by border AND background, never colour alone — a colour-only
+   cue is invisible to anyone who cannot distinguish the hues. */
+.theme-option.selected {
+  border-color: var(--accent);
+  background-color: var(--accent-bg);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.theme-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-option-icon {
+  color: var(--color-gray-500);
+  margin-bottom: var(--space-xxs);
+}
+
+.theme-option.selected .theme-option-icon {
+  color: var(--accent);
+}
+
+.theme-option-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.theme-option-description {
+  font-size: var(--text-xs);
+  color: var(--color-gray-500);
+  line-height: 1.3;
+}
+
+/* Below this the three columns squeeze the labels; one column per row reads. */
+@media (max-width: 420px) {
+  .theme-options {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-option {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-sm);
+    text-align: left;
+  }
+
+  .theme-option-icon {
+    margin-bottom: 0;
+  }
+
+  .theme-option-description {
+    margin-left: auto;
+  }
+}
+
+.settings-notice {
+  margin-top: var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+}
+
+/* ==========================================================================
+   Responsive (Day 19)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .settings-page-wrapper {
+    padding: var(--space-md);
+  }
+
+  .settings-property-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xxs);
+  }
+
+  .settings-property-value {
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+}
