@@ -966,10 +966,10 @@ Mirror of frontend Day 1: scaffold the project, map the product to modules. The 
 - **IntelliJ IDEA**, Maven build tool. Registered JDK 21 via Project Structure → SDKs (IntelliJ had auto-downloaded JDK 26 and was using it — fixed so build+runtime both = 21, matching `pom.xml`).
 
 ## Scaffold — Spring Initializr
-- start.spring.io: Maven, Java 21, Jar. Group `com.bluestone`, Artifact `knowledge-assistant`.
+- start.spring.io: Maven, Java 21, Jar. Group `com.knowledgeassistant`, Artifact `knowledge-assistant`.
 - **Spring Boot 4.0.7** — the timeframe only offered 4.x (3.x is past its window). Chose 4.0.7: the settled non-SNAPSHOT option (avoid SNAPSHOT = nightly/unfinished; avoid newest-4.1.0 = least docs). Tax: most tutorials are 3.x, so some artifact names differ (`spring-boot-starter-webmvc` not `-web`; split `-test` starters) and some autoconfig classes moved packages.
 - **4 dependencies, chosen deliberately** (not everything): Spring Web (REST + embedded Tomcat), Spring Data JPA (persistence), PostgreSQL Driver (JDBC connector), Validation (Bean Validation for Day 2 DTOs). Did NOT add Security (demo login only; Security locks every endpoint by default), Lombok (see plain Java first), or Flyway (Day 3 adds it).
-- **Java package name = `com.bluestone.knowledge_assistant`** — underscore, because the hyphen in the artifact is illegal in Java packages so Initializr converted it. Non-idiomatic (convention is no separators) but left as-is; not worth renaming mid-setup.
+- **Java package name = `com.knowledgeassistant`** — underscore, because the hyphen in the artifact is illegal in Java packages so Initializr converted it. Non-idiomatic (convention is no separators) but left as-is; not worth renaming mid-setup.
 
 ## Spring concept learned: inversion of control / auto-configuration
 - Spring is an IoC container: you *declare* what you need (`@Service`, `@RestController`, `@Repository`) and Spring instantiates + wires the objects ("beans"). A controller doesn't `new` its service — it declares the dependency in its constructor and Spring injects it. Biggest shift from school-Java (where you wire by hand).
@@ -983,7 +983,7 @@ Mirror of frontend Day 1: scaffold the project, map the product to modules. The 
 - Clean boot achieved: `Started KnowledgeAssistantApplication in ~2s`, Tomcat on 8080, on Java 21.
 
 ## The deliverable: feature-first package map
-Under `com.bluestone.knowledge_assistant`, one package per contract resource + two cross-cutting:
+Under `com.knowledgeassistant`, one package per contract resource + two cross-cutting:
 ```
 auth      document   chat   action   task     (feature domains)
 common    config                              (cross-cutting)
@@ -1022,7 +1022,7 @@ A thin `fetch` wrapper, the single seam that makes real mode work:
 - Sets `Content-Type: application/json` UNLESS the body is `FormData` — critical: forcing JSON content-type on the multipart upload would break it (the browser must set the multipart boundary itself).
 
 ## Auth token plumbing
-- Login `POST /api/auth/login` (real creds `user@bluestone.com` / `securepassword123` — NOT the old mock hint `developer@bluestone.ai`/`Password123!`; the real seeded DB differs).
+- Login `POST /api/auth/login` (real creds `user@example.com` / `securepassword123` — NOT the old mock hint `developer@example.com`/`Password123!`; the real seeded DB differs).
 - On 200, store `token` (`demo-token-<uuid>` — an OPAQUE demo token, NOT a JWT) + the user object in localStorage. Adapter attaches the token to all subsequent requests.
 - Backend receives but IGNORES the token today (endpoints still open; enforcement is backend Day 16). Wiring it now means tomorrow's route protection slots in.
 - (localStorage is the pragmatic demo choice; it's XSS-exposed — a production app would use httpOnly cookies or in-memory+refresh. Noted, not changed.)

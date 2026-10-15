@@ -3,7 +3,7 @@
 -- Retires the seeded demo accounts, whose password is published in V8 and was until
 -- now printed on the login screen.
 --
--- Deleting them outright would have destroyed real work: user@bluestone.com had
+-- Deleting them outright would have destroyed real work: user@example.com had
 -- accumulated genuinely uploaded documents, chat history, and tasks, and held the only
 -- ROLE_ADMIN. So its content is transferred to the real account first.
 --
@@ -14,8 +14,8 @@
 
 DO $$
 DECLARE
-    demo_a  UUID := '11111111-1111-1111-1111-111111111111';  -- user@bluestone.com
-    demo_b  UUID := '99999999-9999-9999-9999-999999999999';  -- other@bluestone.com
+    demo_a  UUID := '11111111-1111-1111-1111-111111111111';  -- user@example.com
+    demo_b  UUID := '99999999-9999-9999-9999-999999999999';  -- other@example.com
     heir    UUID;
     admin   UUID;
 BEGIN

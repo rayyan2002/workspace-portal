@@ -4,7 +4,7 @@
 -- UUID: 11111111-1111-1111-1111-111111111111
 -- Password is the exact bcrypt hash for 'securepassword123'
 INSERT INTO users (id, email, password, name) VALUES
-('11111111-1111-1111-1111-111111111111', 'user@bluestone.com', '$2a$10$jeE4v1hyIWHPUzqkeIK/Eetve0NuqwqlMKAQxrWCzX1boVpFC8Jo6', 'Muhammad Rayyan Ayub');
+('11111111-1111-1111-1111-111111111111', 'user@example.com', '$2a$10$jeE4v1hyIWHPUzqkeIK/Eetve0NuqwqlMKAQxrWCzX1boVpFC8Jo6', 'Muhammad Rayyan Ayub');
 
 -- 2. Documents (Matching the frontend mock catalog)
 INSERT INTO documents (id, filename, size_bytes, status) VALUES

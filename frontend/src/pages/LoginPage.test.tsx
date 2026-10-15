@@ -71,7 +71,7 @@ describe('LoginPage User Flows', () => {
     renderWithProviders(<LoginPage />)
     const user = userEvent.setup()
 
-    await user.type(screen.getByLabelText(/email address/i), 'developer@bluestone.ai')
+    await user.type(screen.getByLabelText(/email address/i), 'developer@example.com')
     await user.type(screen.getByLabelText(/password/i, { selector: 'input' }), 'Password123!')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 

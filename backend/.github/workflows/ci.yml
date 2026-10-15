@@ -104,28 +104,25 @@ jobs:
     name: Frontend (React)
     runs-on: ubuntu-latest
     steps:
-      # The frontend lives in its own repository. This job exists so the CONTRACT TESTS run
-      # on every backend change: Type.conformance.test.ts asserts Type.ts against
-      # action-contract.json, which the backend's ActionContractSnapshotTest holds Spring to.
-      # Checking it out here is what makes a one-sided contract change fail.
+      # This job exists so the CONTRACT TESTS run on every backend change:
+      # Type.conformance.test.ts asserts Type.ts against action-contract.json, which the
+      # backend's ActionContractSnapshotTest holds Spring to. Running both halves in one
+      # workflow is what makes a one-sided contract change fail.
+      #
+      # The frontend used to live in its own repository and was checked out separately, with
+      # continue-on-error because the repository name was a guess. Both services are in this
+      # repository now, so the ordinary checkout covers it and a failure here is real.
       - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/knowledge-assistant-fe
-          path: frontend
-        continue-on-error: true
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Test
         working-directory: frontend
         run: |
-          if [ ! -f package.json ]; then
-            echo "frontend repository not reachable from this workflow — skipping."
-            echo "Remove continue-on-error above once the repository name is confirmed."
-            exit 0
-          fi
           npm ci
           npx tsc -b
           npm test

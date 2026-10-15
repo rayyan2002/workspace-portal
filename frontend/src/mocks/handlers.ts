@@ -163,8 +163,8 @@ export const handlers = [
     }
 
     const successResponse: AuthResponse = {
-      accessToken: 'mock-access-token-bluestone-xyz123',
-      refreshToken: 'mock-refresh-token-bluestone-xyz123',
+      accessToken: 'mock-access-token-example-xyz123',
+      refreshToken: 'mock-refresh-token-example-xyz123',
       tokenType: 'Bearer',
       expiresIn: 900,
       user: mockUser,

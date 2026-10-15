@@ -578,7 +578,7 @@ grep <trace-id> logs/app.log
 ## 10. Layout
 
 ```
-src/main/java/com/bluestone/knowledge_assistant/
+src/main/java/com/knowledgeassistant/
 ├── auth/          login, registration, refresh tokens, password reset
 ├── security/      Spring Security config, JWT filter, 401/403 handlers
 ├── user/          User, Role

@@ -1,13 +1,13 @@
 import type { Document, ChatSession, Message, Task, ActionAudit } from '../Type'
 
 export const DEMO_CREDENTIALS = {
-  email: 'developer@bluestone.ai',
+  email: 'developer@example.com',
   password: 'Password123!'
 }
 
 export const mockUser = {
   id: 'usr-99',
-  email: 'developer@bluestone.ai',
+  email: 'developer@example.com',
   name: 'Muhammad Rayyan Ayub'
 }
 

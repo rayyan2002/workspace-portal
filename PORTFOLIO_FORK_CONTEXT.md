@@ -258,8 +258,9 @@ land well. Pick what the owner wants; skip the rest.
 
 **Not worth doing:**
 
-- Renaming the `com.bluestone.knowledge_assistant` package. It appears in 158 tracked files
-  and the rename buys nothing — `bluestone` is a project namespace, not a liability.
+- Renaming the `com.knowledgeassistant` package. It appears in 158 tracked files
+  and the rename buys nothing — the namespace was a project name, not a liability.
+  (Done anyway on 2026-10-15, at the owner's request: it is now `com.knowledgeassistant`.)
 - Scrubbing `Nisum` / `AeroTwin` strings from benchmark headers and fixtures. The owner has
   confirmed there is nothing confidential here. The benchmark write-ups are the strongest
   material in the repo; **do not rewrite their prose.** If the corpus is replaced per item 1

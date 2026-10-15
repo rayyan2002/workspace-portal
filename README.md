@@ -93,7 +93,7 @@ there:
 cd backend
 ```
 
-Test suites run to roughly 212 (Spring), 457 (GenAI) and 37 (frontend), plus an opt-in
-golden suite of 24 that scores retrieval, citation and answer separately — kept apart
-because a single accuracy number repeatedly hid the case where retrieval was right and
-generation was wrong.
+Test suites: **212** (Spring), **457** (GenAI) and **37** (frontend), plus an opt-in golden
+suite that scores retrieval, citation and answer separately — kept apart because a single
+accuracy number repeatedly hid the case where retrieval was right and generation was
+wrong.

@@ -8,7 +8,7 @@
 
 -- 1. Second user (same bcrypt hash as user A: password is 'securepassword123')
 INSERT INTO users (id, email, password, name) VALUES
-('99999999-9999-9999-9999-999999999999', 'other@bluestone.com', '$2a$10$jeE4v1hyIWHPUzqkeIK/Eetve0NuqwqlMKAQxrWCzX1boVpFC8Jo6', 'Other User');
+('99999999-9999-9999-9999-999999999999', 'other@example.com', '$2a$10$jeE4v1hyIWHPUzqkeIK/Eetve0NuqwqlMKAQxrWCzX1boVpFC8Jo6', 'Other User');
 
 -- 2. User B's own chat session
 INSERT INTO chat_sessions (id, user_id, title, last_message_preview) VALUES

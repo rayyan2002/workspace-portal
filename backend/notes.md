@@ -15,10 +15,10 @@ Scaffold the project, map the product to modules. The Day-21 API contract is the
 - **IntelliJ IDEA**, Maven. Registered JDK 21 via Project Structure → SDKs (IntelliJ had auto-downloaded JDK 26 and was defaulting to it — fixed so build + runtime both = 21, matching `pom.xml`).
 
 ## Scaffold — Spring Initializr
-- Maven, Java 21, Jar. Group `com.bluestone`, Artifact `knowledge-assistant`.
+- Maven, Java 21, Jar. Group `com.knowledgeassistant`, Artifact `knowledge-assistant`.
 - **Spring Boot 4.0.7** — the timeframe only offered 4.x (3.x is past its window). Chose 4.0.7: settled non-SNAPSHOT (avoid SNAPSHOT = nightly; avoid newest 4.1.0 = least docs). Tax: most tutorials are 3.x, so some artifact names differ (`spring-boot-starter-webmvc` not `-web`; split `-test` starters) and some autoconfig classes moved packages.
 - **4 dependencies, chosen deliberately:** Spring Web (REST + embedded Tomcat), Spring Data JPA (persistence), PostgreSQL Driver (JDBC connector), Validation (Bean Validation). Did NOT add Security (demo login only; Security locks every endpoint by default), Lombok (see plain Java first), Flyway (Day 3).
-- **Package = `com.bluestone.knowledge_assistant`** — underscore because the hyphen in the artifact is illegal in Java packages. Non-idiomatic but left as-is; not worth renaming mid-setup.
+- **Package = `com.knowledgeassistant`** — underscore because the hyphen in the artifact is illegal in Java packages. Non-idiomatic but left as-is; not worth renaming mid-setup.
 
 ## Spring concepts learned
 - **Inversion of control / dependency injection:** you *declare* what you need (`@Service`, `@RestController`, `@Repository`) and Spring instantiates + wires the beans. A controller doesn't `new` its service — it declares the dependency in its constructor; Spring injects it. Big shift from school-Java hand-wiring.
@@ -32,7 +32,7 @@ Scaffold the project, map the product to modules. The Day-21 API contract is the
 - Clean boot: `Started KnowledgeAssistantApplication in ~2s`, Tomcat on 8080, Java 21.
 
 ## Deliverable: feature-first package map
-Under `com.bluestone.knowledge_assistant`:
+Under `com.knowledgeassistant`:
 ```
 auth   document   chat   action   task      (feature domains)
 common   config                             (cross-cutting)
@@ -509,7 +509,7 @@ Expose the whole Days 2-11 API surface as a live, browsable, testable Swagger UI
 Swagger UI can't build a working input form for Jackson `EXTERNAL_PROPERTY` polymorphism — auto-gen produces a confusing nested object that FAILS on Execute. The schema list showed the sealed family (`ActionPayload`, `ActionRequest`, 3 variants as `any & object`) but not a runnable payload. Fix: a hardcoded `@ExampleObject` JSON on the action endpoint (`{type:"create-task", payload:{...}}`) bypasses the UI's confusion — paste-and-run. This is the one endpoint where the explicit example is essential, not just nice.
 
 ## Examples seeded with REAL values (the usability insight)
-The examples aren't just docs — Swagger executes against the LIVE backend, so examples are EXECUTABLE. Seeded them with real working values: login example uses the real seeded creds (`user@bluestone.com`/`securepassword123`), action/message examples use the real seeded session id (`3333...`). So "Try it out" actually succeeds (200 + token, 200 + created task) instead of 401/404-ing on placeholder values. The mentor drives the whole API from the browser, no terminal.
+The examples aren't just docs — Swagger executes against the LIVE backend, so examples are EXECUTABLE. Seeded them with real working values: login example uses the real seeded creds (`user@example.com`/`securepassword123`), action/message examples use the real seeded session id (`3333...`). So "Try it out" actually succeeds (200 + token, 200 + created task) instead of 401/404-ing on placeholder values. The mentor drives the whole API from the browser, no terminal.
 - Caveat: Execute has REAL side effects (the action example created a real task row) — Swagger is not a dry-run.
 
 ## Verified interactively (from the browser)
