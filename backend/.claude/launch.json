@@ -3,15 +3,10 @@
   "configurations": [
     {
       "name": "genai",
-      "runtimeExecutable": "genai-service/.venv/bin/uvicorn",
+      "runtimeExecutable": "sh",
       "runtimeArgs": [
-        "app.main:app",
-        "--app-dir",
-        "genai-service",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000"
+        "-c",
+        "cd genai-service && ./.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
       ],
       "port": 8000
     },

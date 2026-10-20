@@ -96,7 +96,7 @@ Every version in `genai-service/requirements.txt` is pinned to what torch 2.2.2 
 
 There is no `docker-compose.yml`, deliberately. Docker is not installed on the machine this project was built on, so any compose file here would be **untested** — and a documented path that fails costs you more than an absent one, because you will trust it and debug it before doubting it.
 
-If you prefer Docker for Postgres, you need only three facts: image `postgres:16`, a database named `knowledge_assistant`, and point the app at it with `DB_URL`. See §3.
+If you prefer Docker for Postgres, you need only three facts: image `postgres:16`, a database named `knowledge_assistant_portfolio`, and point the app at it with `DB_URL`. See §3.
 
 ---
 
@@ -119,7 +119,7 @@ pg_isready
 Create the database:
 
 ```bash
-createdb knowledge_assistant
+createdb knowledge_assistant_portfolio
 ```
 
 > **On the superuser.** A Homebrew install makes your macOS username the superuser, not `postgres` — so `psql -U postgres` fails here with `role "postgres" does not exist`. `createdb` with no `-U` uses your own account and is correct on any install. If you installed Postgres another way, use whatever superuser it created.
@@ -153,7 +153,7 @@ installed for. Without it the build targets whatever `pg_config` is first on `PA
 Then enable it **once per database**:
 
 ```bash
-psql -d knowledge_assistant -c "CREATE EXTENSION vector;"
+psql -d knowledge_assistant_portfolio -c "CREATE EXTENSION vector;"
 ```
 
 > **Why this is not a Flyway migration.** `CREATE EXTENSION` needs superuser. A migration
@@ -165,7 +165,7 @@ psql -d knowledge_assistant -c "CREATE EXTENSION vector;"
 Verify before continuing:
 
 ```bash
-psql -d knowledge_assistant -c "SELECT extversion FROM pg_extension WHERE extname='vector';"
+psql -d knowledge_assistant_portfolio -c "SELECT extversion FROM pg_extension WHERE extname='vector';"
 # 0.8.0
 ```
 
@@ -190,7 +190,7 @@ Everything is environment-overridable with a working local default, so **no conf
 
 | Variable | Default | When you need it |
 |---|---|---|
-| `DB_URL` | `jdbc:postgresql://localhost:5432/knowledge_assistant` | Non-default host, port, or database name |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/knowledge_assistant_portfolio` | Non-default host, port, or database name |
 | `DB_USERNAME` | your macOS username | Your Postgres user differs |
 | `DB_PASSWORD` | *(empty)* | Your Postgres requires a password |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Frontend served elsewhere |
@@ -292,12 +292,18 @@ python3.11 -m venv .venv
 ./.venv/bin/python -m pip install -r requirements.txt
 ```
 
-Then, from the repository root:
+Then, **from inside `genai-service`** — not from the repository root:
 
 ```bash
-./genai-service/.venv/bin/python -m uvicorn app.main:app \
-    --app-dir genai-service --host 127.0.0.1 --port 8000
+cd genai-service
+./.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+The working directory matters. `app/config.py` sets `env_file=".env"`, which
+pydantic-settings resolves against the process's working directory, *not* against
+`--app-dir`. Started from the repository root it silently reads no `.env` at all: the
+service comes up, the local models load, and the first Gemini request fails with
+`Gemini was requested but no API key is configured`. Nothing warns you in between.
 
 It binds `127.0.0.1` deliberately: **the service has no authentication and trusts the document ids it is handed**, so anything that can reach it can read any document. Do not expose it without putting something in front of it.
 
@@ -364,7 +370,7 @@ So the first thing to do is **sign up** at <http://localhost:5173/signup>. The a
 Nothing self-service grants `ROLE_ADMIN` — that is the point, since sign-up is public. There is no UI for it either, so it is a deliberate database operation:
 
 ```bash
-psql -d knowledge_assistant -c "
+psql -d knowledge_assistant_portfolio -c "
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id FROM users u, roles r
 WHERE u.email = 'you@example.com' AND r.name = 'ROLE_ADMIN'
@@ -376,7 +382,7 @@ Sign out and back in afterwards — roles are baked into the access token when i
 To check who has what:
 
 ```bash
-psql -d knowledge_assistant -c "
+psql -d knowledge_assistant_portfolio -c "
 SELECT u.email, string_agg(r.name, ',') AS roles
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id

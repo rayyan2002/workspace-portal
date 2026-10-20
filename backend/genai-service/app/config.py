@@ -297,7 +297,7 @@ class Settings(BaseSettings):
     # Spring owns every write and the schema. These are separate fields rather than one
     # DSN string so a password can arrive from the environment without being pasted into
     # a URL that ends up in a log line.
-    db_name: str = "knowledge_assistant"
+    db_name: str = "knowledge_assistant_portfolio"
     db_host: str = "localhost"
     db_port: int = 5432
     db_user: str = ""

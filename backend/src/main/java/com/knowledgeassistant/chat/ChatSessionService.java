@@ -487,7 +487,28 @@ public class ChatSessionService {
             return beginTurn(session, initialMessage, model);
         });
 
-        GenAiAnswerResponse answer = ask(turn, userId);
+        GenAiAnswerResponse answer;
+        try {
+            answer = ask(turn, userId);
+        } catch (RuntimeException e) {
+            // Phase 1 has already COMMITTED the session and the user's question, which is
+            // what lets the model call run without holding a pooled connection. The cost is
+            // that a failed answer leaves a conversation containing a question and no reply.
+            //
+            // That is not merely untidy. The client stays on /chat/new until a session id
+            // comes back, so every retry posts here again and creates ANOTHER one: eight
+            // 503s from the GenAI service produced eight identical conversations in the
+            // sidebar, none of which the user had asked for. Undo phase 1 before the failure
+            // propagates. Deleting the session cascades to the message just written.
+            //
+            // sendMessage deliberately does NOT do this: there the session predates the turn
+            // and belongs to the user, so removing it would destroy their history.
+            inTransaction(() -> {
+                chatSessionRepository.deleteById(turn.sessionId());
+                return null;
+            });
+            throw e;
+        }
 
         return inTransaction(() -> {
             MessageDto initialResponse = completeTurn(turn, answer, userId);

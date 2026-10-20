@@ -98,7 +98,7 @@ PostgreSQL — install + configure the datasource (remove the Day-1 excludes), F
 The app gains a memory. Deliverable: a versioned migration set (V1–V8) creating the full schema + seed data. Success: DB initializes with demo data for frontend integration.
 
 ## Environment
-- **PostgreSQL 16** via `brew install postgresql@16` — installed clean, NO permission wall (user-space Homebrew install worked despite the managed Mac). `brew services start postgresql@16`, connected via `psql postgres`, `createdb knowledge_assistant`.
+- **PostgreSQL 16** via `brew install postgresql@16` — installed clean, NO permission wall (user-space Homebrew install worked despite the managed Mac). `brew services start postgresql@16`, connected via `psql postgres`, `createdb knowledge_assistant_portfolio`.
 - Homebrew Postgres default: superuser = Mac username (`rayyanayub`), no password, trust-auth for local. Fine for dev; prod would use a dedicated app user with a password (note for Day 20).
 
 ## Wiring Spring → Postgres
@@ -110,7 +110,7 @@ The app gains a memory. Deliverable: a versioned migration set (V1–V8) creatin
 Flyway **never auto-ran** despite everything being correct. Debugged in order:
 1. **File-location bug:** the migration file was created directly in `src/main/resources/db/` NOT in `db/migration/` — IntelliJ's tree *displayed* it as nested but on disk it was a sibling. `ls src/main/resources/db/migration/` returning EMPTY was the tell. Lesson: **when a path-dependent tool can't find a file that "looks" right in the IDE tree, verify the actual disk path with `ls`, not the tree.** Moved file into `migration/`, confirmed `find target/classes -name "*.sql"` → `db/migration/V1...`.
 2. **Even with the file correct + `spring.flyway.enabled=true` + the dep cached (`flyway-core-11.14.1.jar` present in `~/.m2`), Flyway stayed completely silent** — no log lines at all. Signature of **Spring Boot 4.x not auto-configuring Flyway**. This is the bleeding-edge tax (4.0.7): integrations that "just work" on mainstream 3.x can silently fail on 4.x because the ecosystem hasn't caught up.
-- **RESOLUTION — apply migrations manually:** `psql knowledge_assistant < src/main/resources/db/migration/Vn__*.sql`. The migration FILES remain the schema-of-record (versioned, committed, reviewable — the whole value of migrations). Only lost: auto-apply on startup. `ddl-auto=validate` stays, so Day-4 entities get validated against the hand-applied schema.
+- **RESOLUTION — apply migrations manually:** `psql knowledge_assistant_portfolio < src/main/resources/db/migration/Vn__*.sql`. The migration FILES remain the schema-of-record (versioned, committed, reviewable — the whole value of migrations). Only lost: auto-apply on startup. `ddl-auto=validate` stays, so Day-4 entities get validated against the hand-applied schema.
 - **BACKLOG:** "Flyway auto-config silent on Spring Boot 4.0.7 — migrations applied manually via psql; revisit auto-run (may need a 4.x-specific property or workaround)."
 - Side note: `./mvnw` can't run (network blocks the wrapper's Maven download) — use IntelliJ's bundled Maven / Build menu instead of the terminal wrapper.
 
