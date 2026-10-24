@@ -214,6 +214,11 @@ def record_answer(response, question: str, backend: str) -> None:
             "best_rejected_score": trace.best_rejected_score,
             # COUNT, not the words. A typed word is user text and this file holds none.
             "spelling_corrections": len(trace.spelling_corrections),
+            # The TERMS, not a count: these words exist in the corpus by definition, so
+            # they are not user text the way a misspelling is, and which term fired is
+            # the entire diagnostic value of the field.
+            "rare_term_rescue": trace.rare_term_rescue,
+            "filename_tiebreak": trace.filename_tiebreak,
             "retrieval_mode": trace.retrieval_mode,
             "retrieved": len(trace.retrieved),
             "min_score": trace.min_score,

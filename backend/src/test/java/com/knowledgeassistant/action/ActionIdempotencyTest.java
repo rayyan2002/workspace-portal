@@ -9,6 +9,7 @@ import com.knowledgeassistant.support.TestFixtures;
 import com.knowledgeassistant.task.TaskPriority;
 import com.knowledgeassistant.user.User;
 import org.junit.jupiter.api.BeforeEach;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,6 +41,7 @@ class ActionIdempotencyTest {
     @Autowired private ActionService actionService;
     @Autowired private ActionAuditRepository auditRepository;
     @Autowired private TestFixtures fixtures;
+    @Autowired private ObjectMapper objectMapper;
 
     private User owner;
     private ChatSession session;
@@ -84,10 +86,83 @@ class ActionIdempotencyTest {
 
         assertNotNull(repeat);
         assertEquals(ActionStatus.completed, repeat.status());
-        // The first side effect is not replayed and its result was never stored, so there is
-        // nothing truthful to return here. Null is honest; re-running to regenerate it would
-        // defeat the point.
-        assertNull(repeat.result());
+
+        // UNTIL V21 THIS ASSERTED null, and that assertion was pinning a bug rather than a
+        // guarantee. Approving a summarize takes about two minutes (134.9s measured), so a
+        // user who navigated away mid-request destroyed the work permanently: the server
+        // finished, nothing kept the answer, and clicking again produced a shrug. The
+        // outcome is stored now, so the repeat replays it instead.
+        assertNotNull(repeat.result(), "a repeated decision must replay the stored result");
+    }
+
+    @Test
+    void theReplayedResultIsTheSameResult() {
+        // Not merely non-null: the SAME answer. A replay that returned a different task,
+        // or a freshly generated summary, would mean the side effect had run twice — which
+        // is the thing idempotency exists to prevent.
+        String actionId = "act-" + UUID.randomUUID();
+        ActionResult first = actionService.processAction(approval(actionId), owner.getId());
+        ActionResult repeat = actionService.processAction(approval(actionId), owner.getId());
+
+        assertNotNull(first.result());
+        // Compared AS JSON, not by toString. The live result is a TaskDto record and the
+        // replayed one is a Map parsed back from storage, so their toStrings differ while
+        // the payload is identical — and the JSON is what the client actually receives.
+        // (That comparison also showed the wire name is `sourceSessionId`, not
+        // `sessionId`, which is exactly the drift storing raw JSON avoids.)
+        assertEquals(
+                objectMapper.writeValueAsString(first.result()),
+                objectMapper.writeValueAsString(repeat.result()),
+                "the replay must carry the first execution's result, not a new one");
+    }
+
+    @Test
+    void aRowDecidedBeforeTheResultWasStoredStillAnswers() {
+        // Rows written before V21 have status and result NULL, and no backfill would be
+        // anything but an invention. The replay must degrade to the old answer rather than
+        // claim a result that was never kept.
+        String actionId = "act-" + UUID.randomUUID();
+        actionService.processAction(approval(actionId), owner.getId());
+
+        ActionAudit stored = auditRepository.findByActionId(actionId).orElseThrow();
+        stored.recordOutcome(null, null, null);          // as a pre-V21 row looks
+        auditRepository.save(stored);
+
+        ActionResult repeat = actionService.processAction(approval(actionId), owner.getId());
+
+        assertEquals(ActionStatus.completed, repeat.status());
+        assertNull(repeat.result(), "an unstored result must not be invented");
+    }
+
+    @Test
+    void aReplayedDecisionSaysWhichDecisionActuallyStands() {
+        // THE REPORTED BUG. A user approved a create-task proposal, then pressed Reject on
+        // the same card, and the card answered "Task created: University admission policy."
+        // The server was right — rejecting afterwards must not delete a task that exists —
+        // but the UI reported a creation as though the Reject click had caused it.
+        String actionId = "act-" + UUID.randomUUID();
+        actionService.processAction(approval(actionId), owner.getId());
+
+        ActionRequest lateRejection = new ActionRequest(actionId, session.getId(),
+                ActionDecision.rejected, ActionType.CREATE_TASK,
+                new CreateTaskPayload("Review the runway findings", TaskPriority.medium));
+        ActionResult replay = actionService.processAction(lateRejection, owner.getId());
+
+        assertEquals(ActionDecision.approved, replay.replayedDecision(),
+                "a replay must name the decision that actually stands");
+        assertEquals(ActionStatus.completed, replay.status());
+        assertEquals(1, fixtures.taskCount(owner), "the rejection must not undo the task");
+    }
+
+    @Test
+    void aDecisionMadeNowIsNotMarkedAsAReplay() {
+        // The other half: without this, the client would show "already decided" on every
+        // first click and the field would be useless.
+        ActionResult first = actionService.processAction(
+                approval("act-" + UUID.randomUUID()), owner.getId());
+
+        assertNull(first.replayedDecision(),
+                "the call that decides a proposal is not replaying anything");
     }
 
     @Test
@@ -127,9 +202,14 @@ class ActionIdempotencyTest {
                 ActionDecision.approved, ActionType.LOOKUP_KNOWLEDGE,
                 new com.knowledgeassistant.action.dto.LookupPayload("anything"));
 
-        ActionResult result = actionService.processAction(lookup, owner.getId());
+        ActionResult accepted = actionService.processAction(lookup, owner.getId());
 
-        assertEquals(ActionStatus.failed, result.status());
-        assertNull(result.result());
+        // V22: lookup calls a language model, so the DECISION is acknowledged immediately
+        // and the work finishes in the background. The audit row carries the outcome.
+        assertEquals(ActionStatus.running, accepted.status());
+
+        ActionAudit outcome = auditRepository.findByActionId(lookup.actionId()).orElseThrow();
+        assertEquals(ActionStatus.failed, outcome.getStatus());
+        assertNull(outcome.getResult(), "a failure stores no result");
     }
 }

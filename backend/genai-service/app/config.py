@@ -1,4 +1,6 @@
 """Configuration. Every value is env-overridable; nothing model-related is hardcoded at a call site."""
+from typing import Literal
+
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,6 +17,67 @@ class Settings(BaseSettings):
     # Pinned by revision, not just by name. A model repo is mutable; "BAAI/bge-small-en-v1.5"
     # today and the same string in six months are not guaranteed to be the same weights, and
     # different weights in the same vector space is the silent-corruption case.
+    #: How documents are cut. "sentence" packs whole sentences up to the token ceiling;
+    #: "semantic" embeds every sentence and cuts where neighbouring meaning diverges most.
+    #:
+    #: SEMANTIC COSTS AN EMBEDDING PASS PER SENTENCE AT INGESTION, which is the real trade:
+    #: chunking a document goes from microseconds to a model call over every sentence in it.
+    #: Retrieval is unaffected — the cost is paid once, at upload.
+    #:
+    #: CHANGING THIS DOES NOT RE-CHUNK WHAT IS ALREADY STORED. Existing documents keep the
+    #: chunks they were ingested with, so a corpus can end up half one strategy and half the
+    #: other. Re-upload the documents after changing it, or the comparison is meaningless.
+    chunking_strategy: Literal["sentence", "semantic"] = "semantic"
+
+    #: The ABSOLUTE gate: no gap below this distance is ever a cut.
+    #:
+    #: This is what lets a uniform document produce NO cuts. A percentile alone cannot —
+    #: there is always a top 1% — so a five-paragraph document entirely about coffee was
+    #: being cut at every threshold down to p60.
+    #:
+    #: 0.45 sits in the measured gap between the two stress documents in
+    #: benchmarks/stress (four unrelated topics vs one topic throughout):
+    #:
+    #:     comparison unit     A max    B max    separation
+    #:     single sentences    0.631    0.573        0.059   <- no floor can separate these
+    #:     5-sentence blocks   0.566    0.344        0.222
+    semantic_min_distance: float = Field(default=0.45, ge=0.0, le=2.0)
+
+    #: How many sentences on EACH SIDE of a gap are compared. The two blocks never overlap.
+    #:
+    #: Comparing single sentences (window 1) does not work with this encoder: sentence-level
+    #: distance is dominated by ordinary sentence variation, so four unrelated topics look
+    #: almost exactly like none. Blocks average that noise out.
+    #:
+    #: It replaced an OVERLAPPING buffer, which was actively harmful: at a boundary both
+    #: windows contained both topics, so they resembled each other and the signal vanished.
+    #: The real aviation-to-baking boundary measured 0.4902 unbuffered and 0.0955 buffered.
+    semantic_window_sentences: int = Field(default=5, ge=1, le=20)
+
+    #: The RELATIVE gate. DISABLED BY DEFAULT, and that took two attempts to get right.
+    #:
+    #: A percentile selects a fixed FRACTION of gaps, so it decides HOW MANY cuts before it
+    #: has looked at the text. At 99 on a 55-gap page that is 0.55 cuts — four topics could
+    #: never become four chunks. Demoting it to 70 was not enough, because the rule takes
+    #: max(floor, percentile): on a UNIFORM page the floor is higher and the percentile is
+    #: harmless, but on a genuinely DIVERSE page the percentile is higher and overrules the
+    #: floor. Measured on ten mutually unrelated sentences:
+    #:
+    #:     gap distances        0.60 0.52 0.52 0.52 0.49 0.37 0.44 0.49 0.49
+    #:     above the floor      7 of 9        <- what the text says
+    #:     floor + p70          2 chunks      <- percentile raised the bar to 0.516
+    #:     floor alone          8 chunks      <- what the text asked for
+    #:
+    #: The absolute floor already answers both cases correctly, so the relative gate has
+    #: nothing left to contribute. 0 disables it. Raise it only to deliberately cap cutting
+    #: on a corpus where almost every gap clears the floor.
+    semantic_breakpoint_percentile: float = Field(default=0.0, ge=0.0, le=99.9)
+
+    #: A group is never cut smaller than this. Without it a run of dissimilar one-liners —
+    #: a spreadsheet, a list of goals — becomes one chunk per sentence, and a chunk that
+    #: short carries no context for the model to answer from.
+    semantic_min_sentences: int = Field(default=4, ge=1, le=10)
+
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_model_revision: str = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
     embedding_dim: int = Field(default=384, ge=1)
@@ -385,6 +448,25 @@ class Settings(BaseSettings):
     # somebody made and can be asked about, not something inherited by a deployment that
     # copied a .env. `tests/test_log_redaction.py` asserts the off state still leaks
     # nothing, which is what keeps the default honest.
+    #: A query term that names exactly this many documents is treated as identifying.
+    #: 1, not 2: on a 15-document corpus ordinary English words reach df 2 by accident.
+    rare_term_max_documents: int = Field(default=1, ge=1, le=5)
+
+    #: ...and must occur at least this many times in that document. THE GUARD THAT MAKES
+    #: df USABLE. Measured in benchmarks/29: `swift` 26, `suzuki` 21, `aerotwin` 42 and
+    #: `admission` 13 identify a document; `contain` 2 and `adbms` 1 do not, and promoting
+    #: on `contain` broke a golden question until this was added.
+    rare_term_min_occurrences: int = Field(default=5, ge=1)
+
+    #: The floor a rescued document's best chunk must clear. Lower than default_min_score
+    #: because the whole point is admitting something the floor cut — the Suzuki guide
+    #: scored 0.5146 on the reported question — but NOT unbounded, because reaching past
+    #: what the vector search surfaced is where a rescue could start answering questions
+    #: the corpus cannot. Swept in benchmarks/29: 0.45 and 0.50 both give 3 fixed / 0
+    #: broken / 0 leaked; 0.52 drops to 2 fixed and 0.55 to 1. 0.50 is the higher of the
+    #: two that lose nothing, and matches anchor_min_score.
+    rare_term_rescue_floor: float = Field(default=0.50, ge=-1.0, le=1.0)
+
     log_prompts: bool = False
 
     log_dir: str = "logs"

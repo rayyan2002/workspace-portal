@@ -10,6 +10,18 @@ import '../styles/actions.css'
 import { apiFetch } from '../api/client'
 
 type TabState = 'tasks' | 'audit'
+
+/**
+ * Where a row's "source" link should go.
+ *
+ * With a message id it lands on the exact prompt that produced the row; without one it
+ * falls back to the conversation. Rows created before V23 genuinely have no message
+ * recorded — proposals were ephemeral — and inventing one would scroll to the wrong place,
+ * which is worse than landing at the top.
+ */
+function sourceHref(sessionId: string, messageId?: string | null) {
+  return messageId ? `/chat/${sessionId}?message=${messageId}` : `/chat/${sessionId}`
+}
 type TaskFilter = 'all' | 'todo' | 'in-progress' | 'done'
 
 export default function ActionsPage() {
@@ -157,7 +169,7 @@ export default function ActionsPage() {
                   )}
                 </div>
                 <div className="task-footer">
-                  <Link to={`/chat/${task.sourceSessionId}`} className="source-link">
+                  <Link to={sourceHref(task.sourceSessionId, task.sourceMessageId)} className="source-link">
                     <ExternalLink size={14} /> Source: {getSessionTitle(task.sourceSessionId)}
                   </Link>
                 </div>
@@ -217,10 +229,31 @@ export default function ActionsPage() {
                 <div className="audit-title">
                   <span className="audit-type">{log.type}</span>
                   <span className={`badge-decision decision-${log.decision}`}>{log.decision}</span>
+                  {/* DECISION AND OUTCOME ARE DIFFERENT FACTS — V21/V22. "approved" says
+                      what the human chose; this says what actually happened, including
+                      `running` while slow work finishes in the background. Rows decided
+                      before V21 have no status and show nothing rather than a guess. */}
+                  {log.status && (
+                    <span className={`badge-status status-${log.status}`}>{log.status}</span>
+                  )}
                 </div>
+                {log.status === 'running' && (
+                  <p className="audit-result audit-result-pending">
+                    Working on it — this usually takes a minute or two.
+                  </p>
+                )}
+                {log.failureReason && (
+                  <p className="audit-result audit-result-failed">{log.failureReason}</p>
+                )}
+                {log.result?.summary && (
+                  <p className="audit-result">{log.result.summary}</p>
+                )}
+                {log.result?.title && (
+                  <p className="audit-result">Task created: {log.result.title}</p>
+                )}
                 <div className="audit-meta">
                   <span><Clock size={12} /> {new Date(log.timestamp).toLocaleString()}</span>
-                  <Link to={`/chat/${log.sessionId}`} className="source-link">
+                  <Link to={sourceHref(log.sessionId, log.messageId)} className="source-link">
                     <ExternalLink size={12} /> {getSessionTitle(log.sessionId)}
                   </Link>
                 </div>

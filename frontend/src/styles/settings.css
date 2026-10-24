@@ -208,3 +208,14 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Promote / revoke administrator — V25. The row already lays label and value out; these
+   only add the inline button, the badge and the refusal message, so the page keeps whatever
+   palette index.css defines rather than introducing colours of its own. */
+.settings-property-value { display: flex; align-items: center; gap: var(--space-sm); justify-content: space-between; }
+.admin-role-button { font-size: var(--text-xs); padding: 2px var(--space-xs); white-space: nowrap; }
+.admin-role-button:disabled { opacity: 0.6; cursor: default; }
+.admin-badge { margin-left: var(--space-xs); font-size: var(--text-xs); padding: 1px var(--space-xs); border: 1px solid currentColor; border-radius: var(--radius-sm); opacity: 0.8; }
+/* The server refuses two cases by design — your own access, and the last administrator.
+   Its wording says which, so it is shown verbatim rather than replaced. */
+.admin-role-error { flex-basis: 100%; margin: var(--space-xxs) 0 0; font-size: var(--text-xs); color: var(--color-red-600); }

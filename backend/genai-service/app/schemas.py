@@ -112,6 +112,13 @@ class IngestResponse(Strict):
     chunk_count: int = Field(ge=0)
     embedding_model: str
     embedding_model_revision: str
+    chunking_strategy: str = Field(
+        description=(
+            "How these chunks were cut: 'sentence' packs whole sentences to the token "
+            "ceiling, 'semantic' cuts where neighbouring meaning diverges. Spring stores "
+            "it per chunk (V24) so a mixed corpus can say which rows are which."
+        ),
+    )
     embedding_dim: int
     chunks: list[Chunk]
     trace: IngestTrace
@@ -421,6 +428,22 @@ class RetrieveTrace(Strict):
             "and they answer different questions"
         ),
     )
+    filename_tiebreak: bool = Field(
+        default=False,
+        description=(
+            "Two documents scored within min_document_margin and the question named one of "
+            "them outright. See app/selectivity.py."
+        ),
+    )
+
+    rare_term_rescue: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Query terms that named a document the vector search had not picked. Non-empty "
+            "only when the rescue changed the result; see app/selectivity.py."
+        ),
+    )
+
     spelling_corrections: list["SpellingCorrection"] = Field(
         default_factory=list,
         description=(

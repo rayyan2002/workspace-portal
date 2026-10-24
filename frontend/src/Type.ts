@@ -51,6 +51,18 @@ export interface User {
   name?: string
 }
 
+/**
+ * A user as `/api/admin/users` returns them — V25.
+ *
+ * Separate from `User` because the admin list is the only place role information is
+ * published. Widening `User` would carry a person's privileges into every auth response
+ * that ever mentions them.
+ */
+export interface AdminUser extends User {
+  /** Whether this account currently holds ROLE_ADMIN. */
+  admin: boolean
+}
+
 export interface LoginRequest {
   email: string
   password: string
@@ -115,9 +127,12 @@ export interface ChatSession {
   lastMessagePreview: string
   updatedAt: string
   /**
-   * The assistant's reply to the opening message, present only on the create
-   * response. Carries the ephemeral action proposal, which no history refetch can
-   * return.
+   * The assistant's reply to the opening message, present only on the create response.
+   *
+   * It carries the action proposal — which, since V23, a history refetch CAN also return,
+   * along with whatever was decided about it. Proposals used to be ephemeral and that was
+   * the cause of two reported bugs: a decided card vanished on refresh, and nothing linked
+   * a task or an audit row back to the prompt that produced it.
    */
   initialResponse?: Message
 }
@@ -178,8 +193,15 @@ export type ActionType = typeof ACTION_TYPES[number]
 export const ACTION_DECISIONS = ['approved', 'rejected'] as const
 export type ActionDecision = typeof ACTION_DECISIONS[number]
 
-/** How an action turned out. Spring's ActionStatus — NOT the decision. */
-export const ACTION_RESULT_STATUSES = ['completed', 'rejected', 'failed'] as const
+/**
+ * How an action turned out. Spring's ActionStatus — NOT the decision.
+ *
+ * `running` arrived with V22: a decision is acknowledged the moment it is recorded, and
+ * slow work (summarise, lookup — both call a language model, measured at 78-135s) finishes
+ * in the background. Without it the request held the connection open for two minutes and
+ * people navigated away from a working system.
+ */
+export const ACTION_RESULT_STATUSES = ['completed', 'rejected', 'failed', 'running'] as const
 export type ActionResultStatus = typeof ACTION_RESULT_STATUSES[number]
 
 export const TASK_PRIORITIES = ['low', 'medium', 'high'] as const
@@ -234,8 +256,29 @@ const _payloadKeysAreComplete: [_CheckCreateTask, _CheckSummarize, _CheckLookup]
 void _payloadKeysAreComplete
 
 // Discriminated Union for Action Proposals (Used by UI to render proposals)
+/**
+ * What a decided proposal carries when history replays it — V23.
+ *
+ * Proposals used to be ephemeral: sent once, never stored, so a refresh removed the card
+ * and a decision a human made left no trace in the conversation where they made it.
+ */
+export interface ProposalDecision {
+  /** What the human chose. */
+  decision: ActionDecision
+  /** What execution did. Null for rows decided before the outcome was stored. */
+  status: ActionResultStatus | null
+  result: { summary?: string; title?: string; snippets?: string[] } | null
+  failureReason: string | null
+}
+
 export type ActionProposal = {
-  [K in ActionType]: { id: string; type: K; label: string; payload: ActionPayloads[K] }
+  [K in ActionType]: {
+    id: string; type: K; label: string; payload: ActionPayloads[K]
+    /** The message this proposal belongs to, for linking to the exact prompt. */
+    messageId?: string | null
+    /** Absent while undecided. Present once somebody has approved or rejected it. */
+    decision?: ProposalDecision | null
+  }
 }[ActionType]
 
 /**
@@ -282,6 +325,8 @@ export interface Task {
   createdAt: string;
   completedAt?: string;
   sourceSessionId: string; // NEW: The referential link back to the chat
+  /** The prompt that proposed this task. Null for tasks created before V23. */
+  sourceMessageId?: string | null;
 }
 
 // ==========================================================================
@@ -324,11 +369,30 @@ export type ActionResult =
       /** Why it did not complete. Present on `failed`, absent on `rejected` — a rejection
        *  has no reason beyond the user's, and inventing one would be wrong. */
       failureReason?: string | null
+      /** See the `completed` branch below. */
+      replayedDecision?: ActionDecision | null
     }
   | {
       [K in ActionType]: {
-        actionId: string; status: 'completed'; type: K; result: ActionResults[K]
+        actionId: string; status: 'completed'; type: K
+        /** NULL ON A REPLAYED DECISION, and this type used to deny it. ActionService
+         *  returns `completed` with no result when the proposal was already decided: the
+         *  original side effect is not re-run and its output was never stored, so there is
+         *  nothing truthful to send. Declaring it non-null let `result.summary` compile and
+         *  crash the page with "Cannot read properties of null (reading 'summary')" the
+         *  second time a user pressed a button. */
+        result: ActionResults[K] | null
         failureReason?: null
+        /**
+         * The decision that ACTUALLY STANDS, when this click did not make it. Null when
+         * this click is the one that decided the proposal.
+         *
+         * A user approved a create-task proposal, then pressed Reject on the same card, and
+         * the card answered "Task created: University admission policy." The server was
+         * right — a proposal is decided once and rejecting afterwards must not delete a
+         * task that exists — but the UI reported a creation as though Reject had caused it.
+         */
+        replayedDecision?: ActionDecision | null
       }
     }[ActionType]
 
@@ -340,6 +404,14 @@ export interface ActionAudit {
   type: ActionType;
   decision: ActionDecision;
   timestamp: string;
+  /** What execution did, as opposed to what was decided. Null for rows predating V21. */
+  status: ActionResultStatus | null;
+  /** The stored result, replayed verbatim. Null unless status is `completed`. */
+  result: { summary?: string; title?: string; snippets?: string[] } | null;
+  /** Operator-facing text. Null unless status is `failed`. */
+  failureReason: string | null;
+  /** The prompt that carried this proposal. Null for actions decided before V23. */
+  messageId?: string | null;
 }
 /**
  * Contract revision #2 (backend Day 19). List endpoints previously returned a bare

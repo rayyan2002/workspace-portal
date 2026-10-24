@@ -26,6 +26,8 @@ public record GenAiIngestResponse(
         @JsonProperty("chunk_count") int chunkCount,
         @JsonProperty("embedding_model") String embeddingModel,
         @JsonProperty("embedding_model_revision") String embeddingModelRevision,
+        /** How the GenAI service cut these chunks: "sentence" or "semantic" (V24). */
+        @JsonProperty("chunking_strategy") String chunkingStrategy,
         @JsonProperty("embedding_dim") int embeddingDim,
         @JsonProperty("chunks") List<GenAiChunk> chunks,
         @JsonProperty("trace") GenAiIngestTrace trace

@@ -224,3 +224,13 @@
     padding: var(--space-sm); 
   }
 }
+/* The outcome of an action, beside the decision — V21/V22. A decision badge says what the
+   human chose; this says what the system then did, which is a different fact and used to be
+   unavailable until the work finished. */
+.badge-status { font-size: var(--text-xs); padding: 2px var(--space-xs); border-radius: var(--radius-sm); border: 1px solid currentColor; }
+.status-running { color: var(--color-blue-600); }
+.status-completed { color: var(--color-green-600); }
+.status-failed { color: var(--color-red-600); }
+.audit-result { margin: var(--space-xxs) 0 0; font-size: var(--text-xs); color: var(--color-gray-500); }
+.audit-result-pending { font-style: italic; }
+.audit-result-failed { color: var(--color-red-600); }

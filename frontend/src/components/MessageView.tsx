@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Send, AlertCircle, RefreshCw } from 'lucide-react'
 import type { Message, APIError, ActionProposal, GenerationModel } from '../Type'
 import MessageCitations from './MessageCitations'
@@ -50,6 +50,23 @@ function MessageView({ sessionId, sessionTitle, onSessionCreated }: MessageViewP
   const navigate = useNavigate()
   
   const [messages, setMessages] = useState<UIMessage[]>([])
+
+  // ARRIVING FROM A LINK. `?message=<id>` scrolls that message into view and marks it, so
+  // following a task or an audit row lands on the prompt that caused it rather than at the
+  // top of a long conversation.
+  //
+  // Depends on `messages` as well as the id: the list is fetched, so on first render the
+  // element does not exist yet and scrolling would silently do nothing.
+  const [searchParams] = useSearchParams()
+  const highlightId = searchParams.get('message')
+
+  useEffect(() => {
+    if (!highlightId) return
+    const target = document.getElementById(`message-${highlightId}`)
+    if (!target) return
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlightId, messages])
+
   const [input, setInput] = useState('')
   // REMEMBERED, not per question. This was `useState('local')`, described as "per question,
   // not a saved preference" — but the effect was that any remount reverted a user who had
@@ -298,7 +315,12 @@ function MessageView({ sessionId, sessionTitle, onSessionCreated }: MessageViewP
           return (
             <div
               key={msg.id}
-              className={`message-bubble-wrapper ${isUser ? 'user-align' : 'assistant-align'}`}
+              // Deep-link target. The Actions page and the audit trail link to the exact
+              // prompt that produced a row, not just to the conversation — see
+              // `sourceHref` in ActionsPage.
+              id={`message-${msg.id}`}
+              className={`message-bubble-wrapper ${isUser ? 'user-align' : 'assistant-align'}`
+                + (msg.id === highlightId ? ' is-linked' : '')}
             >
               <div className="message-content-group">
                 <div className={`message-bubble ${isUser ? 'user-style' : 'assistant-style'} ${bubbleStateClass}`}>

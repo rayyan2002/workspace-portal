@@ -24,6 +24,9 @@ public interface ActionAuditRepository extends JpaRepository<ActionAudit, UUID> 
      */
     Optional<ActionAudit> findByActionId(String actionId);
 
+    /** Decisions for a page of proposals in ONE query — history replays a page at a time. */
+    java.util.List<ActionAudit> findByActionIdIn(java.util.List<String> actionIds);
+
 
     /**
      * The caller's audit trail only. Same JOIN shape as tasks: an audit row belongs to

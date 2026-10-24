@@ -43,8 +43,9 @@ public class DocumentChunkWriter {
     private static final String INSERT = """
             INSERT INTO document_chunks
                 (id, document_id, ordinal, text, token_count, char_start, char_end,
-                 section, page, embedding, embedding_model, embedding_model_revision, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::vector, ?, ?, now())
+                 section, page, embedding, embedding_model, embedding_model_revision,
+                 chunking_strategy, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::vector, ?, ?, ?, now())
             """;
 
     /** Batched rather than one statement per chunk: a 180-chunk document is 180 round trips. */
@@ -114,12 +115,18 @@ public class DocumentChunkWriter {
                 // space are simply invisible to the new query.
                 ps.setString(11, ingested.embeddingModel());
                 ps.setString(12, ingested.embeddingModelRevision());
+                // HOW IT WAS CUT, alongside what embedded it — V24. Changing the strategy
+                // does not re-chunk what is already stored, so a corpus is mixed the moment
+                // it changes, and until now that was answerable only by reading a histogram
+                // of token counts.
+                ps.setString(13, ingested.chunkingStrategy());
             });
         }
 
-        log.info("document.chunks.written documentId={} chunks={} model={} revision={}",
+        log.info("document.chunks.written documentId={} chunks={} model={} revision={} "
+                        + "strategy={}",
                 documentId, chunks.size(), ingested.embeddingModel(),
-                ingested.embeddingModelRevision());
+                ingested.embeddingModelRevision(), ingested.chunkingStrategy());
         return chunks.size();
     }
 

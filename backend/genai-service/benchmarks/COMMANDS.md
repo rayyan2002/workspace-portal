@@ -8,10 +8,8 @@ Copy-paste, top to bottom. Each block prints the evidence for one claim.
 brew services start postgresql@16
 ```
 
-Every command below is run from `backend/genai-service`, so start there:
-
 ```bash
-cd backend/genai-service
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service
 ```
 
 ---
@@ -258,7 +256,7 @@ curl -sS -X POST http://127.0.0.1:8000/retrieve -H 'Content-Type: application/js
 **Greedy vs sampled, JSON rate, citation rate** — the numbers behind the decoding default:
 
 ```bash
-PYTHONPATH=$PWD ./.venv/bin/python benchmarks/14_decoding_and_citations.py
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && PYTHONPATH=$PWD ./.venv/bin/python benchmarks/14_decoding_and_citations.py
 ```
 
 **A grounded answer with citations** (slow — 30 s or so, and the model is the whole cost):
@@ -294,14 +292,14 @@ PYTHONPATH=$PWD ./.venv/bin/python benchmarks/19_explain_query.py "What does the
 scoring and duplicate collapsing:
 
 ```bash
-PYTHONPATH=$PWD ./.venv/bin/python benchmarks/19_explain_query.py "how many parts in project_setup.txt" --retrieve-only
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && PYTHONPATH=$PWD ./.venv/bin/python benchmarks/19_explain_query.py "how many parts in project_setup.txt" --retrieve-only
 ```
 
 **The guard refusing to answer** — a question the documents cannot answer, where the model
 would otherwise invent one:
 
 ```bash
-PYTHONPATH=$PWD ./.venv/bin/python benchmarks/19_explain_query.py "tell me about how to defend fyp"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && PYTHONPATH=$PWD ./.venv/bin/python benchmarks/19_explain_query.py "tell me about how to defend fyp"
 ```
 
 ---
@@ -321,13 +319,13 @@ to `schemas.py`. It needs the service up, which is why it is a command and not a
 a Spring test that depends on a Python process being alive is the trap Day 8 caught.
 
 ```bash
-curl -s http://127.0.0.1:8000/openapi.json | ./.venv/bin/python -c "import json,sys; json.dump(json.load(sys.stdin), open('/tmp/live-spec.json','w'), indent=2, sort_keys=True)" && diff <(cat /tmp/live-spec.json) <(python3 -c "import json;print(json.dumps(json.load(open('../src/test/resources/genai-openapi.json')), indent=2, sort_keys=True))") && echo "IN SYNC" || echo "DRIFTED — refresh the snapshot"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && curl -s http://127.0.0.1:8000/openapi.json | ./.venv/bin/python -c "import json,sys; json.dump(json.load(sys.stdin), open('/tmp/live-spec.json','w'), indent=2, sort_keys=True)" && diff <(cat /tmp/live-spec.json) <(python3 -c "import json;print(json.dumps(json.load(open('../src/test/resources/genai-openapi.json')), indent=2, sort_keys=True))") && echo "IN SYNC" || echo "DRIFTED — refresh the snapshot"
 ```
 
 **Refresh the snapshot** when the drift is intentional:
 
 ```bash
-curl -s http://127.0.0.1:8000/openapi.json | ./.venv/bin/python -c "import json,sys; json.dump(json.load(sys.stdin), open('openapi.json','w'), indent=2, sort_keys=True); open('openapi.json','a').write(chr(10))" && cp openapi.json ../src/test/resources/genai-openapi.json && echo "snapshot refreshed — now run the Spring tests"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && curl -s http://127.0.0.1:8000/openapi.json | ./.venv/bin/python -c "import json,sys; json.dump(json.load(sys.stdin), open('openapi.json','w'), indent=2, sort_keys=True); open('openapi.json','a').write(chr(10))" && cp openapi.json ../src/test/resources/genai-openapi.json && echo "snapshot refreshed — now run the Spring tests"
 ```
 
 **Prove the check works** by mutating the snapshot and watching the build fail:
@@ -352,46 +350,46 @@ overlap, because a classifier scored on its own training data reports its memory
 product runs, not a reimplementation of it:
 
 ```bash
-./.venv/bin/python benchmarks/22_tool_evaluation.py
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python benchmarks/22_tool_evaluation.py
 ```
 
 **The router this replaced**, for comparison. It cannot emit `summarize-document` or
 `lookup-knowledge` at all, so both are structural misses for it:
 
 ```bash
-./.venv/bin/python benchmarks/22_tool_evaluation.py --keywords-only
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python benchmarks/22_tool_evaluation.py --keywords-only
 ```
 
 **Routing accuracy as a test.** Needs the embedding model (~130MB, ~2s) and no database, so
 it is opt-in like the golden set:
 
 ```bash
-./.venv/bin/python -m pytest tests/test_intent.py -m routing -q
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python -m pytest tests/test_intent.py -m routing -q
 ```
 
 **The three languages, held to one contract.** Each of these reads a committed artefact
 rather than another language's prose:
 
 ```bash
-cd .. && ./mvnw -o test -Dtest='ToolRegistryConformanceTest+ActionContractSnapshotTest+GenAiSpecConformanceTest'
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant && ./mvnw -o test -Dtest='ToolRegistryConformanceTest+ActionContractSnapshotTest+GenAiSpecConformanceTest'
 ```
 
 ```bash
-cd ../../frontend && npx vitest run src/Type.conformance.test.ts
+cd /Users/rayyanayub/Desktop/knowledge-assistant-fe && npx vitest run src/Type.conformance.test.ts
 ```
 
 **Prove the frontend check works** by renaming a field in the shared snapshot and watching
 TypeScript's side go red:
 
 ```bash
-cd ../../frontend && cp src/test/action-contract.json /tmp/ac.bak && sed -i '' 's/"documentId", "documentName"/"docId", "documentName"/' src/test/action-contract.json && npx vitest run src/Type.conformance.test.ts; cp /tmp/ac.bak src/test/action-contract.json
+cd /Users/rayyanayub/Desktop/knowledge-assistant-fe && cp src/test/action-contract.json /tmp/ac.bak && sed -i '' 's/"documentId", "documentName"/"docId", "documentName"/' src/test/action-contract.json && npx vitest run src/Type.conformance.test.ts; cp /tmp/ac.bak src/test/action-contract.json
 ```
 
 **Refresh the tool registry snapshot** after any change to the argument schemas. One command
 writes all three copies, so they cannot be refreshed unevenly:
 
 ```bash
-./.venv/bin/python -c "import sys,json;sys.path.insert(0,'.');from app.routers.tools import tools;o=json.dumps(tools().model_dump(mode='json'),indent=2,sort_keys=True)+chr(10);open('evaluation/tool_registry.json','w').write(o);open('../src/test/resources/tool-registry.json','w').write(o);open('../../frontend/src/test/tool-registry.json','w').write(o);print('refreshed 3 copies')"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python -c "import sys,json;sys.path.insert(0,'.');from app.routers.tools import tools;o=json.dumps(tools().model_dump(mode='json'),indent=2,sort_keys=True)+chr(10);open('evaluation/tool_registry.json','w').write(o);open('../src/test/resources/tool-registry.json','w').write(o);open('/Users/rayyanayub/Desktop/knowledge-assistant-fe/src/test/tool-registry.json','w').write(o);print('refreshed 3 copies')"
 ```
 
 ---
@@ -403,14 +401,14 @@ writes all three copies, so they cannot be refreshed unevenly:
 pinning fragility on this machine — so the install is part of the command:
 
 ```bash
-./.venv/bin/pip install --quiet pytest-cov==5.0.0 && ./.venv/bin/python -m pytest tests -m "not golden" --cov=app --cov-report=term-missing -q
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/pip install --quiet pytest-cov==5.0.0 && ./.venv/bin/python -m pytest tests -m "not golden" --cov=app --cov-report=term-missing -q
 ```
 
 Measured on Day 15: **97%**, up from 79% at the start of the day. Remove it again afterwards
 so the pinned environment stays exactly what `requirements.txt` describes:
 
 ```bash
-./.venv/bin/pip uninstall -y pytest-cov coverage && rm -rf .venv/lib/python3.11/site-packages/pytest_cov && ./.venv/bin/python -c "import torch,numpy,sklearn;print('pins intact:',torch.__version__,numpy.__version__,sklearn.__version__)"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/pip uninstall -y pytest-cov coverage && rm -rf .venv/lib/python3.11/site-packages/pytest_cov && ./.venv/bin/python -c "import torch,numpy,sklearn;print('pins intact:',torch.__version__,numpy.__version__,sklearn.__version__)"
 ```
 
 The `rm -rf` is not belt-and-braces: pip leaves an empty `pytest_cov/__pycache__` behind, so
@@ -420,7 +418,7 @@ The `rm -rf` is not belt-and-braces: pip leaves an empty `pytest_cov/__pycache__
 **The whole suite, both markers:**
 
 ```bash
-./.venv/bin/python -m pytest tests -q && ./.venv/bin/python -m pytest tests -m routing -q
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python -m pytest tests -q && ./.venv/bin/python -m pytest tests -m routing -q
 ```
 
 ---
@@ -431,7 +429,7 @@ The `rm -rf` is not belt-and-braces: pip leaves an empty `pytest_cov/__pycache__
 through the UI, then check the row and its chunks:
 
 ```bash
-./.venv/bin/python -c "import sys;sys.path.insert(0,'.');from app.config import settings;import psycopg;c=psycopg.connect(settings.dsn);[print(r) for r in c.execute('select d.filename, d.status, count(ch.id) chunks, max(ch.embedding_model) from documents d left join document_chunks ch on ch.document_id=d.id group by d.id, d.filename, d.status order by d.upload_date desc limit 5').fetchall()]"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python -c "import sys;sys.path.insert(0,'.');from app.config import settings;import psycopg;c=psycopg.connect(settings.dsn);[print(r) for r in c.execute('select d.filename, d.status, count(ch.id) chunks, max(ch.embedding_model) from documents d left join document_chunks ch on ch.document_id=d.id group by d.id, d.filename, d.status order by d.upload_date desc limit 5').fetchall()]"
 ```
 
 **Ingest a file directly, bypassing Spring.** Useful for timing and for proving the service
@@ -447,7 +445,7 @@ model outputs. Withheld answers are excluded, because a suppressed answer has no
 user could see:
 
 ```bash
-./.venv/bin/python benchmarks/24_citation_recovery.py
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && ./.venv/bin/python benchmarks/24_citation_recovery.py
 ```
 
 **Why a citation is missing, for one question.** `parse_path` is the diagnosis:
@@ -456,7 +454,7 @@ user could see:
 produced what shipped:
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/answer -H 'Content-Type: application/json' -d '{"question":"Tell me about admission policy","allowed_document_ids":["<doc-id>"],"model":"local","include_raw":true}' | ./.venv/bin/python -c "import json,sys;r=json.load(sys.stdin);t=r['trace'];print('parse_path     :',t['parse_path']);print('citation_source:',t['citation_source']);print('citations      :',len(r['citations']));print('overlap        :',round(t['grounding_overlap'],2));print('RAW            :',repr((t['raw_model_reply'] or '')[:300]))"
+cd /Users/rayyanayub/IdeaProjects/knowledge-assistant/genai-service && curl -s -X POST http://127.0.0.1:8000/answer -H 'Content-Type: application/json' -d '{"question":"Tell me about admission policy","allowed_document_ids":["<doc-id>"],"model":"local","include_raw":true}' | ./.venv/bin/python -c "import json,sys;r=json.load(sys.stdin);t=r['trace'];print('parse_path     :',t['parse_path']);print('citation_source:',t['citation_source']);print('citations      :',len(r['citations']));print('overlap        :',round(t['grounding_overlap'],2));print('RAW            :',repr((t['raw_model_reply'] or '')[:300]))"
 ```
 
 **NOTE — `--reload` and benchmarks do not mix.** The dev server watches the whole tree, so

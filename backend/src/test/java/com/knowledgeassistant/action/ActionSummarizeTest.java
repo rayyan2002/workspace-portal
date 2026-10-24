@@ -44,6 +44,18 @@ class ActionSummarizeTest {
     @MockitoBean private GenAiClient genAiClient;
     @Autowired private ActionService actionService;
     @Autowired private TestFixtures fixtures;
+    @Autowired private ActionAuditRepository auditRepository;
+
+    /**
+     * The outcome of a summarise, read from where it now lives.
+     *
+     * <p>V22 moved slow work off the request: approving returns `running` immediately and
+     * the audit row carries the terminal status. Asserting on the returned value would only
+     * ever see `running` and would say nothing about whether the work succeeded.
+     */
+    private ActionAudit outcomeOf(String actionId) {
+        return auditRepository.findByActionId(actionId).orElseThrow();
+    }
 
     private User owner;
     private ChatSession session;
@@ -69,14 +81,25 @@ class ActionSummarizeTest {
                 .thenReturn(new GenAiAnswerResponse("grounded",
                         "The report covers quarterly runway inspections.", List.of(), List.of(), null));
 
-        ActionResult result = actionService.processAction(approveSummary(document.getId()), owner.getId());
+        ActionRequest request = approveSummary(document.getId());
+        ActionResult accepted = actionService.processAction(request, owner.getId());
 
-        assertEquals(ActionStatus.completed, result.status());
+        // The REQUEST is answered the moment the decision is recorded — V22. Holding the
+        // connection open for the two minutes the model takes is what made people navigate
+        // away from a working system.
+        assertEquals(ActionStatus.running, accepted.status());
+
+        // The OUTCOME lives on the audit row.
+        ActionAudit outcome = outcomeOf(request.actionId());
+        assertEquals(ActionStatus.completed, outcome.getStatus());
         // Wrapped in SummarizeResult since Day 14b, and the wrapper is not cosmetic: the
         // frontend's ActionResult union declares `result: { summary: string }` and
         // ActionCard.tsx renders `result.summary`, which against a bare string is
         // `undefined` — an approved summary rendered as an empty card.
-        assertEquals(new SummarizeResult("The report covers quarterly runway inspections."), result.result());
+        assertTrue(outcome.getResult().contains("quarterly runway inspections"),
+                "the stored result must carry the summary text");
+        assertTrue(outcome.getResult().contains("summary"),
+                "and must keep the SummarizeResult wrapper the frontend reads");
     }
 
     @Test
@@ -105,9 +128,11 @@ class ActionSummarizeTest {
         User stranger = fixtures.user();
         Document theirs = fixtures.document(stranger, "private.txt");
 
-        ActionResult result = actionService.processAction(approveSummary(theirs.getId()), owner.getId());
+        ActionRequest request = approveSummary(theirs.getId());
+        actionService.processAction(request, owner.getId());
 
-        assertEquals(ActionStatus.failed, result.status());
+        // Accepted instantly, failed in the background — V22. The row is the record.
+        assertEquals(ActionStatus.failed, outcomeOf(request.actionId()).getStatus());
         Mockito.verify(genAiClient, Mockito.never()).answer(ArgumentMatchers.anyString(),
                 ArgumentMatchers.anyList(), ArgumentMatchers.any(), ArgumentMatchers.anyList(), ArgumentMatchers.any());
     }
@@ -120,10 +145,13 @@ class ActionSummarizeTest {
                         ArgumentMatchers.any(), ArgumentMatchers.anyList(), ArgumentMatchers.any()))
                 .thenThrow(GenAiUnavailableException.unreachable());
 
-        ActionResult result = actionService.processAction(approveSummary(document.getId()), owner.getId());
+        ActionRequest request = approveSummary(document.getId());
+        actionService.processAction(request, owner.getId());
 
-        assertEquals(ActionStatus.failed, result.status());
-        assertNull(result.result());
+        // Accepted instantly, failed in the background — V22. The row is the record.
+        ActionAudit outcome = outcomeOf(request.actionId());
+        assertEquals(ActionStatus.failed, outcome.getStatus());
+        assertNull(outcome.getResult(), "a failure stores no result");
     }
 
     @Test
@@ -134,9 +162,11 @@ class ActionSummarizeTest {
                         ArgumentMatchers.any(), ArgumentMatchers.anyList(), ArgumentMatchers.any()))
                 .thenReturn(new GenAiAnswerResponse("insufficient_context", "", List.of(), List.of(), null));
 
-        ActionResult result = actionService.processAction(approveSummary(document.getId()), owner.getId());
+        ActionRequest request = approveSummary(document.getId());
+        actionService.processAction(request, owner.getId());
 
-        assertEquals(ActionStatus.failed, result.status());
+        // Accepted instantly, failed in the background — V22. The row is the record.
+        assertEquals(ActionStatus.failed, outcomeOf(request.actionId()).getStatus());
     }
 
     @Test
@@ -152,12 +182,13 @@ class ActionSummarizeTest {
                 .thenReturn(new GenAiAnswerResponse("insufficient_context", "", List.of(),
                         List.of(), null));
 
-        ActionResult result = actionService.processAction(approveSummary(document.getId()),
-                owner.getId());
+        ActionRequest request = approveSummary(document.getId());
+        actionService.processAction(request, owner.getId());
 
-        assertEquals(ActionStatus.failed, result.status());
-        assertNotNull(result.failureReason(), "a failure the user sees must say why");
-        assertTrue(result.failureReason().contains("summarised"),
+        ActionAudit outcome = outcomeOf(request.actionId());
+        assertEquals(ActionStatus.failed, outcome.getStatus());
+        assertNotNull(outcome.getFailureReason(), "a failure the user sees must say why");
+        assertTrue(outcome.getFailureReason().contains("summarised"),
                 "the reason must name what went wrong, not merely that something did");
     }
 

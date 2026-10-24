@@ -230,3 +230,53 @@ def print_answer(response, chunk_lookup) -> None:
     print(f"  outcome : {response.outcome.value}\n", file=sys.stderr)
     print(_wrap(response.answer or "(empty)"), file=sys.stderr)
     print(file=sys.stderr)
+
+
+def print_chunking(document, chunks, strategy: str, knobs: dict, chunk_ms: int,
+                   ceiling: int) -> None:
+    """How this document was cut, printed at ingestion.
+
+    ADDITIVE: the `ingest.done` log line is unchanged and still carries the same fields it
+    always has. This is the readable version, for showing someone what semantic chunking
+    actually did rather than asking them to trust that it ran.
+
+    Prints SIZES AND BOUNDARIES, never chunk text — the whole-document text is what
+    test_log_redaction.py exists to keep out of the log, and a chunking report does not need
+    it to be convincing.
+    """
+    _h("HOW THIS DOCUMENT WAS CUT")
+    print(f"  strategy   : {strategy}", file=sys.stderr)
+    for name, value in knobs.items():
+        print(f"  {name:<11}: {value}", file=sys.stderr)
+    print(f"  kind       : {document.kind}  "
+          f"({len(document.segments)} segment(s) — pages, headings or sheets)",
+          file=sys.stderr)
+    print(f"  chunks     : {len(chunks)} in {chunk_ms}ms", file=sys.stderr)
+
+    if not chunks:
+        return
+
+    sizes = sorted(c.token_count for c in chunks)
+    def at(fraction: float) -> int:
+        return sizes[min(len(sizes) - 1, int(len(sizes) * fraction))]
+    print(f"  tokens     : min {sizes[0]}  p25 {at(.25)}  median {at(.5)}  "
+          f"p75 {at(.75)}  max {sizes[-1]}  (ceiling {ceiling})", file=sys.stderr)
+
+    # WHERE THE CUTS LANDED, as a map. A chunk ending well under the ceiling was ended by
+    # MEANING; one at the ceiling was ended by the token limit. Showing the difference is
+    # the point — it is the only way to see that semantic chunking did anything at all.
+    # AGAINST THE CONFIGURED CEILING, not the largest chunk that happened to occur. Using
+    # max(sizes) made every document report chunks "at the ceiling" even when none came
+    # close to 510 — a report that flatters the strategy it is meant to evidence.
+    by_meaning = sum(1 for c in chunks if c.token_count < ceiling * 0.9)
+    print(f"  ended by   : {by_meaning} at a meaning boundary, "
+          f"{len(chunks) - by_meaning} at the token ceiling", file=sys.stderr)
+
+    print("  layout     :", file=sys.stderr)
+    for chunk in chunks[:12]:
+        bar = "#" * max(1, round(chunk.token_count / ceiling * 40))
+        where = f"page {chunk.page}" if chunk.page else (chunk.section or "-")
+        print(f"    {chunk.ordinal:>3}. {chunk.token_count:>4} tok  "
+              f"{bar:<40}  {where[:28]}", file=sys.stderr)
+    if len(chunks) > 12:
+        print(f"    ... {len(chunks) - 12} more", file=sys.stderr)

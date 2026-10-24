@@ -112,7 +112,7 @@ class DocumentIntegrationTest {
         Mockito.when(genAiClient.ingest(ArgumentMatchers.any(), ArgumentMatchers.anyString(),
                         ArgumentMatchers.anyString(), ArgumentMatchers.any()))
                 .thenReturn(new GenAiIngestResponse(UUID.randomUUID(), chunks,
-                        "BAAI/bge-small-en-v1.5", "5c38ec7c", 384, body,
+                        "BAAI/bge-small-en-v1.5", "5c38ec7c", "semantic", 384, body,
                         new GenAiIngestTrace("t", 1, 1, 1, 3)));
     }
 

@@ -203,6 +203,8 @@ def _answer(request: RetrievalRequest, backend: str, started: float) -> AnswerRe
             min_score=request.min_score,
             candidates_before_threshold=retrieval.candidates_before_threshold,
             anchor_expanded=retrieval.anchor_expanded,
+            rare_term_rescue=retrieval.rare_term_rescue,
+            filename_tiebreak=retrieval.filename_tiebreak,
             best_rejected_score=retrieval.best_rejected_score,
             spelling_corrections=[SpellingCorrection(typed=t, used=u)
                                   for t, u in retrieval.spelling_corrections],
@@ -445,6 +447,8 @@ def retrieve(request: RetrievalRequest) -> RetrieveResponse:
             min_score=request.min_score,
             candidates_before_threshold=outcome.candidates_before_threshold,
             anchor_expanded=outcome.anchor_expanded,
+            rare_term_rescue=outcome.rare_term_rescue,
+            filename_tiebreak=outcome.filename_tiebreak,
             best_rejected_score=outcome.best_rejected_score,
             spelling_corrections=[SpellingCorrection(typed=t, used=u)
                                   for t, u in outcome.spelling_corrections],

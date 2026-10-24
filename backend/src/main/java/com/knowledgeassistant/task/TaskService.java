@@ -1,5 +1,9 @@
 package com.knowledgeassistant.task;
 
+import java.util.stream.Collectors;
+import java.util.Map;
+import com.knowledgeassistant.action.ActionProposalRepository;
+import com.knowledgeassistant.action.ActionProposal;
 import com.knowledgeassistant.common.TaskNotFoundException;
 import com.knowledgeassistant.common.dto.PageResponse;
 import com.knowledgeassistant.task.dto.TaskDto;
@@ -15,9 +19,11 @@ import java.util.UUID;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final ActionProposalRepository actionProposalRepository;
 
-    public TaskService(TaskRepository taskRepository) {
+    public TaskService(TaskRepository taskRepository, ActionProposalRepository actionProposalRepository) {
         this.taskRepository = taskRepository;
+        this.actionProposalRepository = actionProposalRepository;
     }
 
     @Transactional(readOnly = true)
@@ -26,7 +32,21 @@ public class TaskService {
                 ? taskRepository.findByOwnerAndStatus(userId, status, pageable)
                 : taskRepository.findByOwner(userId, pageable);
 
-        return PageResponse.from(page, TaskDto::from);
+        // ONE extra query for the page, resolving action -> proposal -> message so a task
+        // can link to the prompt that proposed it. Tasks predating V23 have no
+        // source_action_id and resolve to null, which the frontend reads as "session only".
+        Map<String, UUID> messageIds = actionProposalRepository
+                .findByActionIdIn(page.getContent().stream()
+                        .map(Task::getSourceActionId)
+                        .filter(java.util.Objects::nonNull)
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(ActionProposal::getActionId,
+                        ActionProposal::getMessageId, (a, b) -> a));
+
+        return PageResponse.from(page, task -> TaskDto.from(task,
+                task.getSourceActionId() == null
+                        ? null : messageIds.get(task.getSourceActionId())));
     }
 
     @Transactional

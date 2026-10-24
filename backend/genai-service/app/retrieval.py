@@ -86,6 +86,7 @@ import psycopg
 
 from app.config import settings
 from app.schemas import ConversationTurn, RetrievedChunk
+from app.selectivity import best_named_document, selective_documents
 from app.spelling import correct as correct_spelling
 
 log = logging.getLogger(__name__)
@@ -134,6 +135,19 @@ class RetrievalOutcome:
     embed_ms: int
     search_ms: int
     retried_with_history: bool = False
+    best_per_document: dict[UUID, float] = field(default_factory=dict)
+    """Best score per document among the over-fetched candidates, from the rows the search
+    already had. Carried so a tie-break costs no second query."""
+
+    filename_tiebreak: bool = False
+    """True when two documents scored within `min_document_margin` and the question named
+    one of them outright. See app/selectivity.py."""
+
+    rare_term_rescue: list[str] = field(default_factory=list)
+    """Query terms that named a document the vector search had not picked, when that
+    rescue changed the result. Empty on every question that did not need it, which on the
+    golden set is all but three. See app/selectivity.py."""
+
     spelling_corrections: list[tuple[str, str]] = field(default_factory=list)
     """Words replaced before the search that produced this result, as (typed, used).
 
@@ -307,6 +321,26 @@ def retrieve(
     and an irrelevant chunk in the context is exactly what produces a citation to it.
     """
     outcome = _search(embed_query, question, allowed_document_ids, top_k, min_score, dsn)
+
+    # RARE-TERM RESCUE, and note where it sits: BEFORE the early return, because unlike
+    # spelling this fires on a search that SUCCEEDED and picked the wrong document. The
+    # reported case retrieved seven chunks happily; they were simply the wrong seven.
+    rescued = _rescue_by_rare_term(
+        embed_query, question, allowed_document_ids, top_k, outcome, dsn)
+    if rescued is not None:
+        return rescued
+
+    # THE TIE-BREAK. Distinct from the rescue above: there the right document scored far
+    # below the wrong one and had to be reached for. Here the two are a hair apart —
+    # "summarize ai safety document abstract" put a quiz CSV at 0.6992 and AI_safety.pdf at
+    # 0.6898, a gap of 0.0094 — and the existing margin guard never looked, because it only
+    # runs below `confident_score`. Above that the code assumed a winner at 0.69 was a
+    # winner; 0.0094 apart is a coin flip at any altitude.
+    named = _tiebreak_by_filename(
+        embed_query, question, allowed_document_ids, top_k, min_score, outcome, dsn)
+    if named is not None:
+        return named
+
     if outcome.retrieved:
         return outcome
 
@@ -356,6 +390,113 @@ def retrieve(
     )
 
 
+def _tiebreak_by_filename(
+    embed_query,
+    question: str,
+    allowed_document_ids: list[UUID],
+    top_k: int,
+    min_score: float,
+    outcome: "RetrievalOutcome",
+    dsn: str | None,
+) -> "RetrievalOutcome | None":
+    """When two documents are within `min_document_margin`, let the filename decide.
+
+    None in the ordinary case, and it reaches the database only after a tie is CONFIRMED.
+    The tie is found in `outcome.best_per_document`, which the search already computed from
+    rows it already had, so a question with a clear winner costs nothing at all.
+
+    WHY A TIE AT ALL, when there is already a margin guard: that guard only runs below
+    `confident_score`. "summarize ai safety document abstract" put a quiz CSV at 0.6992 and
+    AI_safety.pdf at 0.6898 — 0.0094 apart, far above 0.60, so nothing looked. A gap that
+    small is a coin flip at any altitude.
+
+    See app/selectivity.py for why this is restricted to the TIED documents rather than
+    applied to every document: applied broadly it overrides correct answers.
+    """
+    if not outcome.retrieved or not allowed_document_ids:
+        return None
+
+    ordered = sorted(outcome.best_per_document.items(), key=lambda kv: -kv[1])
+    if len(ordered) < 2:
+        return None
+    top = ordered[0][1]
+    tied = [d for d, score in ordered if top - score < settings.min_document_margin]
+    if len(tied) < 2:
+        return None
+
+    winner = best_named_document(question, tied, dsn)
+    if winner is None or winner == outcome.retrieved[0].document_id:
+        return None
+
+    renamed = _search(embed_query, question, [winner], top_k, min_score, dsn)
+    if not renamed.retrieved:
+        return None
+
+    log.info("filename tie-break: %d documents within %.3f; the question names %s",
+             len(tied), settings.min_document_margin, winner)
+    return replace(
+        renamed,
+        filename_tiebreak=True,
+        embed_ms=outcome.embed_ms + renamed.embed_ms,
+        search_ms=outcome.search_ms + renamed.search_ms,
+    )
+
+
+def _rescue_by_rare_term(
+    embed_query,
+    question: str,
+    allowed_document_ids: list[UUID],
+    top_k: int,
+    outcome: "RetrievalOutcome",
+    dsn: str | None,
+) -> "RetrievalOutcome | None":
+    """Re-search inside the document a rare query term names. None when it does not apply.
+
+    RETURNS None IN THE ORDINARY CASE, and that is the design. It applies only when the
+    question holds a term that names exactly one document and recurs there, AND the vector
+    search chose a document that does not contain it. A question the search already got
+    right is never touched — measured over the golden set, 14 of 18 cases are returned
+    untouched and 0 regress.
+
+    See app/selectivity.py for why document frequency alone was not enough.
+    """
+    # Nothing to rescue into, so do not even build the index. This also keeps the
+    # empty-allow-list path to a single query, which test_retrieval_sql.py pins: that
+    # test guards the leak this service is one `if` away from, and it counts queries.
+    if not allowed_document_ids:
+        return None
+
+    terms = selective_documents(question, dsn)
+    if not terms:
+        return None
+
+    named = {d for documents in terms.values() for d in documents}
+    named &= set(allowed_document_ids)          # never reach outside the caller's allow-list
+    if not named:
+        return None
+
+    # The search already agrees with the rare term: nothing to rescue.
+    if outcome.retrieved and outcome.retrieved[0].document_id in named:
+        return None
+
+    rescued = _search(embed_query, question, sorted(named), top_k,
+                      settings.rare_term_rescue_floor, dsn)
+    if not rescued.retrieved:
+        # The named document exists but says nothing relevant. The original stands, so an
+        # unanswerable question is not handed a document just for sharing a rare word.
+        return None
+
+    log.info("rare-term rescue: %s named a document the search had not picked; "
+             "%d chunks at floor %.2f",
+             sorted(terms), len(rescued.retrieved), settings.rare_term_rescue_floor)
+    return replace(
+        rescued,
+        rare_term_rescue=sorted(terms),
+        embed_ms=outcome.embed_ms + rescued.embed_ms,
+        search_ms=outcome.search_ms + rescued.search_ms,
+    )
+
+
 def _search(
     embed_query,
     question: str,
@@ -401,6 +542,13 @@ def _search(
     # Only meaningful when nothing was admitted; otherwise the admitted scores say it.
     best_rejected = float(rows[0][3]) if rows and not retrieved else None
 
+    # Score-ordered, so the first time a document appears is its best chunk. Free: these
+    # rows were already fetched and are already in memory.
+    best_per_document: dict[UUID, float] = {}
+    for _chunk_id, document_id, _text, score in rows:
+        if document_id not in best_per_document:
+            best_per_document[document_id] = float(score)
+
     return RetrievalOutcome(
         retrieved=retrieved,
         texts=texts,
@@ -411,6 +559,7 @@ def _search(
         search_ms=search_ms,
         query_vector=query_vector,
         anchor_expanded=expanded,
+        best_per_document=best_per_document,
     )
 
 

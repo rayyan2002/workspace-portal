@@ -1,5 +1,8 @@
 package com.knowledgeassistant.action;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
+import tools.jackson.databind.ObjectMapper;
 import com.knowledgeassistant.action.dto.ActionRequest;
 import com.knowledgeassistant.action.dto.ActionResult;
 import com.knowledgeassistant.action.dto.CreateTaskPayload;
@@ -48,25 +51,40 @@ public class ActionService {
     private final ChatSessionRepository chatSessionRepository;
     private final ActionAuditRepository actionAuditRepository;
     private final TaskRepository taskRepository;
+    private final ActionProposalRepository actionProposalRepository;
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final GenAiClient genAiClient;
     private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
+    /**
+     * The interface, not ThreadPoolTaskExecutor. Tests substitute a synchronous executor:
+     * they run inside a rolled-back transaction, so a real background thread could not see
+     * the audit row the request has not committed yet. Running inline keeps the assertion
+     * about WHAT was recorded rather than about thread timing.
+     */
+    private final TaskExecutor actionExecutor;
 
     public ActionService(ChatSessionRepository chatSessionRepository,
                          ActionAuditRepository actionAuditRepository,
                          TaskRepository taskRepository,
+                         ActionProposalRepository actionProposalRepository,
                          DocumentRepository documentRepository,
                          DocumentChunkRepository documentChunkRepository,
                          GenAiClient genAiClient,
-                         TransactionTemplate transactionTemplate) {
+                         TransactionTemplate transactionTemplate,
+                         ObjectMapper objectMapper,
+                         @Qualifier("actionExecutor") TaskExecutor actionExecutor) {
         this.chatSessionRepository = chatSessionRepository;
         this.actionAuditRepository = actionAuditRepository;
         this.taskRepository = taskRepository;
+        this.actionProposalRepository = actionProposalRepository;
         this.documentRepository = documentRepository;
         this.documentChunkRepository = documentChunkRepository;
         this.genAiClient = genAiClient;
         this.transactionTemplate = transactionTemplate;
+        this.objectMapper = objectMapper;
+        this.actionExecutor = actionExecutor;
     }
 
     /**
@@ -110,33 +128,72 @@ public class ActionService {
         var existing = actionAuditRepository.findByActionId(request.actionId());
         if (existing.isPresent()) {
             ActionAudit first = existing.get();
-            log.info("action.repeat actionId={} firstDecision={} — not executed again",
-                    request.actionId(), first.getDecision());
+            log.info("action.repeat actionId={} firstDecision={} storedStatus={} — "
+                            + "not executed again",
+                    request.actionId(), first.getDecision(), first.getStatus());
+
+            // V21: REPLAY THE REAL OUTCOME. Approving a summarize takes about two minutes
+            // (134.9s measured), so a user who navigated away mid-request used to lose the
+            // work permanently — the server finished, nothing kept the answer, and coming
+            // back produced a shrug. The answer is kept now, so a second click returns it.
+            //
+            // Status comes from the ROW, not from the decision. Inferring it was a second
+            // bug: an approved action that FAILED replayed as a success.
+            if (first.getStatus() != null) {
+                return new ActionResult(
+                        request.actionId(), first.getStatus(), request.type(),
+                        readResult(first), first.getFailureReason(),
+                        // What actually stands, so the card can stop reporting a replay as
+                        // though this click caused it.
+                        first.getDecision());
+            }
+
+            // Decided before V21, so there is genuinely nothing stored. No backfill would
+            // be anything but an invention, and claiming a summary we never kept is worse
+            // than admitting we did not keep it.
             return new ActionResult(
                     request.actionId(),
                     first.getDecision() == ActionDecision.approved
                             ? ActionStatus.completed
                             : ActionStatus.rejected,
-                    request.type(),
-                    // The original side effect is not replayed and its result was never
-                    // stored, so there is nothing truthful to return here. Null is honest;
-                    // re-running to regenerate it would defeat the point.
-                    null, null);
+                    request.type(), null, null, first.getDecision());
         }
 
         // 3. ALWAYS write the audit log, regardless of decision — and BEFORE executing.
         //    That ordering was incidental until V20 and is now load-bearing: the UNIQUE
         //    constraint on action_id means a duplicate insert fails here, so the side effect
         //    below never happens.
-        transactionTemplate.execute(status -> actionAuditRepository.save(new ActionAudit(
-                request.actionId(),
-                request.sessionId(),
-                request.type(),
-                request.decision(),
-                Instant.now()
-        )));
+        ActionAudit audit = transactionTemplate.execute(status -> actionAuditRepository.save(
+                new ActionAudit(
+                        request.actionId(),
+                        request.sessionId(),
+                        request.type(),
+                        request.decision(),
+                        Instant.now()
+                )));
 
-        // 3. EXECUTE side-effects ONLY if approved
+        // 3. THE DECISION IS ACKNOWLEDGED NOW; THE WORK MAY NOT BE DONE YET.
+        //
+        //    Creating a task is instant and a rejection is instant, so those still answer
+        //    inside the request. Summarising and lookup are not: they run a full
+        //    grounded-answer pass over a language model, measured at 78-135 seconds. Running
+        //    that inside POST /api/ai/actions meant the human's own decision was not
+        //    acknowledged until the work finished, so the card sat on a spinner long enough
+        //    that people navigated away — and before V21 that destroyed the work.
+        //
+        //    Returning `running` is not a weaker answer than `completed`. It is the true
+        //    one: the decision is recorded, the side effect is accepted, and the audit row
+        //    says so from this moment rather than two minutes later.
+        if (request.decision() == ActionDecision.approved && isSlow(request.type())) {
+            record(request.actionId(), ActionStatus.running, null, null);
+            actionExecutor.execute(() -> runInBackground(request, userId));
+            log.info("action.accepted actionId={} type={} — running in the background",
+                    request.actionId(), request.type());
+            return new ActionResult(request.actionId(), ActionStatus.running,
+                    request.type(), null, null, null);
+        }
+
+        // 4. EXECUTE side-effects ONLY if approved
         Object resultData = null;
         if (request.decision() == ActionDecision.approved) {
 
@@ -149,41 +206,20 @@ public class ActionService {
                         Instant.now(),
                         request.sessionId()
                 );
+                // V23: which action produced this task, so the Actions page can link to the
+                // prompt that proposed it rather than to the conversation as a whole.
+                task.setSourceActionId(request.actionId());
                 transactionTemplate.execute(status -> taskRepository.save(task));
                 resultData = TaskDto.from(task);
 
-            } else if (request.type() == ActionType.SUMMARIZE_DOCUMENT
-                    && request.payload() instanceof SummarizePayload p) {
-                try {
-                    resultData = summarise(p, userId);
-                } catch (Exception failure) {
-                    // FAILED is now producible. The value has existed in ActionStatus since
-                    // Month 2 with nothing able to emit it (BACKLOG.md item 4), so a genuine
-                    // execution failure had no way to be reported — it either threw a 500 or,
-                    // worse, reported `completed`. Summarising calls a language model over
-                    // the network; it can fail for reasons that are nobody's bug.
-                    log.error("action.summarize.failed actionId={} documentId={}",
-                            request.actionId(), p.documentId(), failure);
-                    // The reason reaches the user. Previously the card said "Action
-                    // rejected" — the one thing that had definitively not happened.
-                    return ActionResult.failed(request.actionId(), request.type(),
-                            "This document could not be summarised: nothing in it was "
-                                    + "relevant enough to summarise.");
-                }
-
-            } else if (request.type() == ActionType.LOOKUP_KNOWLEDGE
-                    && request.payload() instanceof LookupPayload p) {
-                try {
-                    resultData = lookUp(p, userId);
-                } catch (Exception failure) {
-                    log.error("action.lookup.failed actionId={}", request.actionId(), failure);
-                    return ActionResult.failed(request.actionId(), request.type(),
-                            "The lookup could not be completed.");
-                }
             }
+            // SUMMARIZE_DOCUMENT and LOOKUP_KNOWLEDGE used to be handled here and are not
+            // any more: both call a language model and are answered with `running` above,
+            // then finished by runInBackground. Leaving dead branches behind would invite
+            // the next reader to "fix" the slow path by re-enabling them.
         }
 
-        // 4. Return the contracted shape: execution status, not the decision echoed back
+        // 5. Return the contracted shape: execution status, not the decision echoed back
         ActionStatus status = request.decision() == ActionDecision.approved
                 ? ActionStatus.completed
                 : ActionStatus.rejected;
@@ -195,11 +231,137 @@ public class ActionService {
             log.error("action.no_effect actionId={} type={} payload={} — approved but no "
                             + "branch executed", request.actionId(), request.type(),
                     request.payload() == null ? "null" : request.payload().getClass().getSimpleName());
-            return ActionResult.failed(request.actionId(), request.type(),
-                    "This action was approved but could not be carried out.");
+            return record(audit, ActionResult.failed(request.actionId(), request.type(),
+                    "This action was approved but could not be carried out."));
         }
 
-        return new ActionResult(request.actionId(), status, request.type(), resultData, null);
+        return record(audit,
+                new ActionResult(request.actionId(), status, request.type(), resultData,
+                        null, null));
+    }
+
+    /**
+     * Stores what execution produced, then returns it unchanged.
+     *
+     * <p>Every exit from {@code processAction} goes through here, so "the row records the
+     * outcome" is a property of the control flow rather than something each branch has to
+     * remember. A branch that forgot would reintroduce exactly the bug V21 exists to fix.
+     *
+     * <p>A failure to SERIALISE must not turn a completed action into a failed one. The
+     * work really happened; losing the ability to replay it is a smaller harm than telling
+     * the user it did not occur, so this logs and returns the live result either way.
+     */
+    private ActionResult record(ActionAudit audit, ActionResult result) {
+        String json = null;
+        if (result.status() == ActionStatus.completed && result.result() != null) {
+            try {
+                json = objectMapper.writeValueAsString(result.result());
+            } catch (Exception serialisation) {
+                log.error("action.result.unstorable actionId={} type={} — the action "
+                                + "succeeded but its result cannot be replayed",
+                        result.actionId(), result.type(), serialisation);
+            }
+        }
+        record(result.actionId(), result.status(), json, result.failureReason());
+        return result;
+    }
+
+    /**
+     * Writes the outcome onto the audit row, by action id.
+     *
+     * <p>BY ID RATHER THAN BY ENTITY, because the background thread that finishes a slow
+     * action does not share the request's persistence context. Handing a detached entity
+     * across that boundary is how you get a silent no-op or a stale overwrite; re-reading
+     * inside the transaction is cheap and cannot.
+     */
+    private void record(String actionId, ActionStatus status, String resultJson,
+                        String failureReason) {
+        transactionTemplate.execute(tx -> actionAuditRepository.findByActionId(actionId)
+                .map(row -> {
+                    row.recordOutcome(status, resultJson, failureReason);
+                    return actionAuditRepository.save(row);
+                })
+                .orElseGet(() -> {
+                    log.error("action.audit.missing actionId={} — outcome {} cannot be "
+                            + "recorded", actionId, status);
+                    return null;
+                }));
+    }
+
+    /** True for work that calls a language model, which is measured in minutes. */
+    private boolean isSlow(ActionType type) {
+        return type == ActionType.SUMMARIZE_DOCUMENT || type == ActionType.LOOKUP_KNOWLEDGE;
+    }
+
+    /**
+     * Runs an already-approved, already-audited slow action and records what it produced.
+     *
+     * <p>Nothing is returned to anyone: the caller was answered when the decision was
+     * recorded. The only output is the audit row, which is why every path here writes one —
+     * a `running` row that never resolves is the single state with no honest reading.
+     */
+    private void runInBackground(ActionRequest request, UUID userId) {
+        try {
+            Object resultData = null;
+            if (request.type() == ActionType.SUMMARIZE_DOCUMENT
+                    && request.payload() instanceof SummarizePayload p) {
+                resultData = summarise(p, userId);
+            } else if (request.type() == ActionType.LOOKUP_KNOWLEDGE
+                    && request.payload() instanceof LookupPayload p) {
+                resultData = lookUp(p, userId);
+            }
+
+            if (resultData == null) {
+                log.error("action.no_effect actionId={} type={} — approved but no branch ran",
+                        request.actionId(), request.type());
+                record(request.actionId(), ActionStatus.failed, null,
+                        "This action was approved but could not be carried out.");
+                return;
+            }
+            record(request.actionId(), ActionStatus.completed,
+                    serialise(request.actionId(), resultData), null);
+            log.info("action.finished actionId={} type={}",
+                    request.actionId(), request.type());
+
+        } catch (Exception failure) {
+            log.error("action.background.failed actionId={} type={}",
+                    request.actionId(), request.type(), failure);
+            record(request.actionId(), ActionStatus.failed, null,
+                    request.type() == ActionType.SUMMARIZE_DOCUMENT
+                            ? "This document could not be summarised: nothing in it was "
+                              + "relevant enough to summarise."
+                            : "The lookup could not be completed.");
+        }
+    }
+
+    private String serialise(String actionId, Object resultData) {
+        try {
+            return objectMapper.writeValueAsString(resultData);
+        } catch (Exception serialisation) {
+            log.error("action.result.unstorable actionId={} — the action succeeded but its "
+                    + "result cannot be replayed", actionId, serialisation);
+            return null;
+        }
+    }
+
+    /**
+     * Reads a stored result back into the shape the API returns.
+     *
+     * <p>Deserialised to {@code Object} on purpose: what the caller wants is the JSON it
+     * would have received the first time, and routing it back through a typed DTO would let
+     * the stored shape drift from the live one with nothing to notice.
+     */
+    private Object readResult(ActionAudit audit) {
+        if (audit.getResult() == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(audit.getResult(), Object.class);
+        } catch (Exception malformed) {
+            log.error("action.result.unreadable actionId={} — stored result will not parse",
+                    audit.getActionId(), malformed);
+            return null;
+        }
     }
 
     /**
@@ -305,8 +467,22 @@ public class ActionService {
 
     @Transactional(readOnly = true)
     public PageResponse<ActionAuditDto> getAuditTrail(UUID userId, Pageable pageable) {
-        return PageResponse.from(
-                actionAuditRepository.findByOwnerOrderByCreatedAtDesc(userId, pageable),
-                ActionAuditDto::from);
+        var page = actionAuditRepository.findByOwnerOrderByCreatedAtDesc(userId, pageable);
+
+        // ONE extra query for the whole page, not one per row. QueryCountTest guards this
+        // path for exactly this reason. Actions decided before V23 have no proposal row and
+        // resolve to null, which the frontend reads as "link to the session, not a message".
+        Map<String, UUID> messageIds = actionProposalRepository
+                .findByActionIdIn(page.getContent().stream()
+                        .map(ActionAudit::getActionId).toList())
+                .stream()
+                .collect(Collectors.toMap(ActionProposal::getActionId,
+                        ActionProposal::getMessageId, (a, b) -> a));
+
+        return PageResponse.from(page,
+                // The stored result travels with the row, so the Actions page can show what
+                // a background action produced without re-running anything.
+                audit -> ActionAuditDto.from(audit, readResult(audit),
+                        messageIds.get(audit.getActionId())));
     }
 }

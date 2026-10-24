@@ -194,7 +194,7 @@ public class ActionProposer {
     private ActionProposalDto dto(ActionType type, String label, String fallbackLabel,
                                   Map<String, Object> payload) {
         String shown = (label == null || label.isBlank()) ? fallbackLabel : label;
-        return new ActionProposalDto(
+        return ActionProposalDto.fresh(
                 // Spring mints the id, because Spring owns the row it becomes:
                 // action_audit.action_id. The service deliberately sends none.
                 "act-" + UUID.randomUUID(),

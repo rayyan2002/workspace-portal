@@ -33,6 +33,15 @@ public class Task {
     @Column(name = "source_session_id", nullable = false)
     private UUID sourceSessionId;
 
+    /**
+     * The action that created this task — V23. Null for tasks predating it.
+     *
+     * <p>Lets the Actions page link to the exact prompt that proposed the task rather than
+     * to the conversation as a whole, by resolving action -> proposal -> message.
+     */
+    @Column(name = "source_action_id")
+    private String sourceActionId;
+
     protected Task() {}
 
     public Task(String title, TaskPriority priority, TaskStatus status, Instant createdAt, UUID sourceSessionId) {
@@ -51,6 +60,8 @@ public class Task {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getCompletedAt() { return completedAt; }
     public UUID getSourceSessionId() { return sourceSessionId; }
+    public String getSourceActionId() { return sourceActionId; }
+    public void setSourceActionId(String sourceActionId) { this.sourceActionId = sourceActionId; }
     public void setStatus(TaskStatus status) {
         this.status = status;
     }

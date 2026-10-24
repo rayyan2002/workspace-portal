@@ -32,7 +32,7 @@
 
   "actionTypes": ["create-task", "summarize-document", "lookup-knowledge"],
   "decisions": ["approved", "rejected"],
-  "statuses": ["completed", "rejected", "failed"],
+  "statuses": ["completed", "rejected", "failed", "running"],
   "priorities": ["low", "medium", "high"],
   "taskStatuses": ["todo", "in-progress", "done"],
 
@@ -43,7 +43,7 @@
   },
 
   "results": {
-    "create-task": ["id", "title", "priority", "status", "createdAt", "completedAt", "sourceSessionId"],
+    "create-task": ["id", "title", "priority", "status", "createdAt", "completedAt", "sourceSessionId", "sourceMessageId"],
     "summarize-document": ["summary"],
     "lookup-knowledge": ["snippets"]
   }

@@ -7,9 +7,11 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app.config import settings
 from app.ingestion import Embedder, UnsupportedDocument, chunk_document, extract
+from app.ingestion.embed import DEFAULT_BATCH_SIZE
 from app.models_registry import registry
 from app.schemas import Chunk, ErrorCode, ErrorResponse, IngestResponse, IngestTrace, ModelState
 from app.trace import current_trace_id
+from app.verbose import print_chunking
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["ingest"])
@@ -111,6 +113,24 @@ def ingest(
         # are SILENTLY truncated. Proven — a 1,145-token text and its 510-token prefix embed
         # to cosine 1.000000.
         max_tokens=settings.max_chunk_tokens,
+        # SEMANTIC CHUNKING, when configured. The same encoder that will embed the chunks
+        # also decides where they end — which is the point: boundaries are drawn in the
+        # space the search actually happens in, not in punctuation.
+        #
+        # normalize_embeddings is left OFF and the chunker normalises instead. It compares
+        # vectors and must not depend on a caller remembering to; an un-normalised vector
+        # would still produce plausible-looking distances that mean nothing.
+        embed_sentences=(
+            None if settings.chunking_strategy == "sentence"
+            # DEFAULT_BATCH_SIZE, the same constant embed.py uses — measured on this
+            # corpus in benchmarks/05 and 10, not guessed.
+            else lambda texts: model.encode(texts, batch_size=DEFAULT_BATCH_SIZE,
+                                            show_progress_bar=False)
+        ),
+        breakpoint_percentile=settings.semantic_breakpoint_percentile,
+        window_sentences=settings.semantic_window_sentences,
+        min_distance=settings.semantic_min_distance,
+        min_sentences=settings.semantic_min_sentences,
     )
     chunk_ms = int((time.perf_counter() - t1) * 1000)
 
@@ -123,10 +143,30 @@ def ingest(
     embed_ms = int((time.perf_counter() - t2) * 1000)
 
     total_ms = int((time.perf_counter() - started) * 1000)
+    # APPENDED, not rewritten: every field this line already carried is still here and in
+    # the same order, so anything parsing it keeps working. The chunking fields go on the
+    # end — which strategy ran, and the size spread it produced.
+    sizes = sorted(c.token_count for c in chunks)
     log.info(
-        "ingest.done documentId=%s kind=%s chunks=%d extract=%dms chunk=%dms embed=%dms total=%dms",
+        "ingest.done documentId=%s kind=%s chunks=%d extract=%dms chunk=%dms embed=%dms "
+        "total=%dms strategy=%s median_tokens=%d min_tokens=%d max_tokens=%d segments=%d",
         document_id, document.kind, len(chunks), extract_ms, chunk_ms, embed_ms, total_ms,
+        settings.chunking_strategy, sizes[len(sizes) // 2] if sizes else 0,
+        sizes[0] if sizes else 0, sizes[-1] if sizes else 0, len(document.segments),
     )
+
+    if settings.verbose_trace:
+        print_chunking(
+            document, chunks, settings.chunking_strategy,
+            {} if settings.chunking_strategy == "sentence" else {
+                "percentile": settings.semantic_breakpoint_percentile,
+                "window": settings.semantic_window_sentences,
+                "min_dist": settings.semantic_min_distance,
+                "min_sent": settings.semantic_min_sentences,
+            },
+            chunk_ms,
+            settings.max_chunk_tokens,
+        )
 
     return IngestResponse(
         document_id=document_id,
@@ -134,6 +174,7 @@ def ingest(
         embedding_model=settings.embedding_model,
         embedding_model_revision=settings.embedding_model_revision,
         embedding_dim=settings.embedding_dim,
+        chunking_strategy=settings.chunking_strategy,
         chunks=[
             Chunk(
                 ordinal=c.ordinal,

@@ -1,5 +1,11 @@
 package com.knowledgeassistant.chat;
 
+import tools.jackson.databind.ObjectMapper;
+import com.knowledgeassistant.action.ActionType;
+import com.knowledgeassistant.action.ActionProposalRepository;
+import com.knowledgeassistant.action.ActionProposal;
+import com.knowledgeassistant.action.ActionAuditRepository;
+import com.knowledgeassistant.action.ActionAudit;
 import com.knowledgeassistant.user.User;
 import com.knowledgeassistant.chat.dto.ActionProposalDto;
 import com.knowledgeassistant.chat.dto.ChatSessionDto;
@@ -162,8 +168,14 @@ public class ChatSessionService {
     private final TransactionTemplate transactionTemplate;
     private final EntityManager entityManager;
     private final ActionProposer actionProposer;
+    private final ActionProposalRepository actionProposalRepository;
+    private final ActionAuditRepository actionAuditRepository;
+    private final ObjectMapper objectMapper;
 
-    public ChatSessionService(ChatSessionRepository chatSessionRepository,
+    public ChatSessionService(ActionProposalRepository actionProposalRepository,
+                              ActionAuditRepository actionAuditRepository,
+                              ObjectMapper objectMapper,
+                              ChatSessionRepository chatSessionRepository,
                               MessageRepository messageRepository,
                               CitationRepository citationRepository,
                               DocumentRepository documentRepository,
@@ -173,6 +185,9 @@ public class ChatSessionService {
                               TransactionTemplate transactionTemplate,
                               EntityManager entityManager,
                               ActionProposer actionProposer) {
+        this.actionProposalRepository = actionProposalRepository;
+        this.actionAuditRepository = actionAuditRepository;
+        this.objectMapper = objectMapper;
         this.chatSessionRepository = chatSessionRepository;
         this.messageRepository = messageRepository;
         this.citationRepository = citationRepository;
@@ -285,10 +300,13 @@ public class ChatSessionService {
         List<Message> messages = messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
         Map<UUID, List<CitationDto>> citations = citationsFor(messages);
 
-        // Citations are persisted, so history keeps its sources; action proposals are
-        // ephemeral by design and are not replayed.
+        // Citations are persisted, so history keeps its sources — and since V23 so are
+        // action proposals, with whatever was decided about them. A decided card now
+        // survives a refresh instead of vanishing from the conversation it belongs to.
+        Map<UUID, List<ActionProposalDto>> proposals = proposalsFor(messages);
         return messages.stream()
-                .map(message -> MessageDto.from(message, citations.get(message.getId())))
+                .map(message -> MessageDto.from(message, citations.get(message.getId()),
+                        proposals.getOrDefault(message.getId(), List.of()), List.of()))
                 .collect(Collectors.toList());
     }
 
@@ -438,6 +456,11 @@ public class ChatSessionService {
         // service, which holds the encoder; ActionProposer turns its answer into something
         // the frontend and the audit flow can read, and drops anything it cannot make safe.
         List<ActionProposalDto> proposals = actionProposer.translate(answer.proposals(), userId);
+        // V23: KEPT, not ephemeral. Until now these were sent once and dropped, so a refresh
+        // removed the card and a decision a human made left no trace in the conversation
+        // where they made it. Storing them also gives the audit trail and the Actions page
+        // something to link to: the proposal is what sits between a message and a decision.
+        proposals = persistProposals(aiMessage.getId(), session.getId(), proposals, now);
 
         session.setUpdatedAt(now);
         session.setLastMessagePreview(reply.length() > 100 ? reply.substring(0, 97) + "..." : reply);
@@ -454,6 +477,103 @@ public class ChatSessionService {
                                 .toList();
 
         return MessageDto.from(aiMessage, citations, proposals, corrections);
+    }
+
+    /**
+     * Stores freshly generated proposals and returns them carrying their message id.
+     *
+     * <p>A proposal that cannot be serialised is DROPPED rather than sent, which is the
+     * conservative direction: an un-storable proposal would render a card that disappears
+     * on refresh and links to nothing — the exact bug V23 exists to end. Better to not
+     * offer the action than to offer one the system cannot stand behind.
+     */
+    private List<ActionProposalDto> persistProposals(UUID messageId, UUID sessionId,
+                                                     List<ActionProposalDto> proposals,
+                                                     Instant now) {
+        if (proposals == null || proposals.isEmpty()) {
+            // ABSENT, NOT EMPTY, and the distinction is load-bearing: ActionProposerTest and
+            // ChatIntegrationTest both assert that "no proposals" serialises as a missing
+            // field rather than []. Returning List.of() here turned every ordinary answer
+            // into one carrying an empty actions array.
+            return proposals;
+        }
+        List<ActionProposalDto> stored = new java.util.ArrayList<>(proposals.size());
+        for (ActionProposalDto proposal : proposals) {
+            String payload;
+            try {
+                payload = objectMapper.writeValueAsString(proposal.payload());
+            } catch (Exception serialisation) {
+                log.error("proposal.unstorable actionId={} type={} — dropped rather than "
+                                + "offered, because it could not be replayed",
+                        proposal.id(), proposal.type(), serialisation);
+                continue;
+            }
+            final String json = payload;
+            inTransaction(() -> actionProposalRepository.save(new ActionProposal(
+                    proposal.id(), messageId, sessionId,
+                    ActionType.fromValue(proposal.type()), proposal.label(), json, now)));
+            stored.add(new ActionProposalDto(proposal.id(), proposal.type(), proposal.label(),
+                    proposal.payload(), messageId, null));
+        }
+        return stored;
+    }
+
+    /**
+     * Every proposal for these messages, with whatever was decided about it.
+     *
+     * <p>TWO QUERIES for the whole page, not two per message: QueryCountTest guards this
+     * path, and history loads a page at a time.
+     */
+    private Map<UUID, List<ActionProposalDto>> proposalsFor(List<Message> messages) {
+        List<UUID> ids = messages.stream().map(Message::getId).toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<ActionProposal> rows = actionProposalRepository.findByMessageIdIn(ids);
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, ActionAudit> decisions = actionAuditRepository
+                .findByActionIdIn(rows.stream().map(ActionProposal::getActionId).toList())
+                .stream()
+                .collect(Collectors.toMap(ActionAudit::getActionId, a -> a, (a, b) -> a));
+
+        Map<UUID, List<ActionProposalDto>> byMessage = new java.util.LinkedHashMap<>();
+        for (ActionProposal row : rows) {
+            ActionAudit decided = decisions.get(row.getActionId());
+            byMessage.computeIfAbsent(row.getMessageId(), k -> new java.util.ArrayList<>())
+                    .add(new ActionProposalDto(
+                            row.getActionId(), row.getType().getValue(), row.getLabel(),
+                            readPayload(row), row.getMessageId(),
+                            decided == null ? null : new ActionProposalDto.Decision(
+                                    decided.getDecision().name(),
+                                    decided.getStatus() == null ? null : decided.getStatus().name(),
+                                    readActionResult(decided),
+                                    decided.getFailureReason())));
+        }
+        return byMessage;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readPayload(ActionProposal row) {
+        try {
+            return objectMapper.readValue(row.getPayload(), Map.class);
+        } catch (Exception malformed) {
+            log.error("proposal.payload.unreadable actionId={}", row.getActionId(), malformed);
+            return Map.of();
+        }
+    }
+
+    private Object readActionResult(ActionAudit audit) {
+        if (audit.getResult() == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(audit.getResult(), Object.class);
+        } catch (Exception malformed) {
+            log.error("action.result.unreadable actionId={}", audit.getActionId(), malformed);
+            return null;
+        }
     }
 
     /** Runs a unit of work in its own transaction, so the slow call can sit outside one. */
