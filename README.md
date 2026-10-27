@@ -392,7 +392,7 @@ SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run
 > **The migrations have already run at that point** — the database is correctly built, so
 > re-running with the profile set is all that is needed. Nothing is left half-applied.
 
-First run applies all migrations — 25 of them, taking the database from empty to 14 tables. Ready when you see:
+First run applies all migrations : 25 of them, taking the database from empty to 14 tables. Ready when you see:
 
 ```
 Started KnowledgeAssistantApplication in 8.9 seconds
